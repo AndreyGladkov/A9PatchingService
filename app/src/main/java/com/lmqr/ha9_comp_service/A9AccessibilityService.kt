@@ -97,6 +97,17 @@ class A9AccessibilityService : AccessibilityService(),
                 "EINK_REFRESH_SPEED_FAST" -> {
                     refreshModeManager.changeMode(RefreshMode.SPEED)
                 }
+
+                "EINK_REFRESH_TEMPORARY" -> {
+                    val mode = intent.getStringExtra("mode")
+                        ?.let { name -> RefreshMode.entries.firstOrNull { it.name == name } }
+                        ?: return
+                    refreshModeManager.overrideTemporarily(mode)
+                }
+
+                "EINK_REFRESH_RESTORE" -> {
+                    refreshModeManager.clearTemporaryMode()
+                }
             }
         }
     }
@@ -134,6 +145,8 @@ class A9AccessibilityService : AccessibilityService(),
         filterEink.addAction("EINK_REFRESH_SPEED_BALANCED")
         filterEink.addAction("EINK_REFRESH_SPEED_SMOOTH")
         filterEink.addAction("EINK_REFRESH_SPEED_FAST")
+        filterEink.addAction("EINK_REFRESH_TEMPORARY")
+        filterEink.addAction("EINK_REFRESH_RESTORE")
         registerReceiver(receiverEink, filterEink, RECEIVER_EXPORTED)
 
         updateColorScheme(sharedPreferences)
