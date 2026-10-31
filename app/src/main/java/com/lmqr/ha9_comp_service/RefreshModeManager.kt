@@ -28,23 +28,11 @@ class RefreshModeManager(
     }
     private var currentClassifier = ""
 
-    private fun defaultRefreshMode() = (sharedPreferences.getString("refresh_setting", "2")
-        ?.let { Integer.parseInt(it) }
-        ?: RefreshMode.SMOOTH) as Int
+    private fun defaultRefreshMode() = sharedPreferences.defaultRefreshMode()
     fun onAppChange(packageName: String) = packageName.run {
         if (this != currentClassifier) {
             currentClassifier = this
-            val tempMode = RefreshMode.fromInt(
-                sharedPreferences.getInt(
-                    toSharedPreferencesKey(
-                        !sharedPreferences.getBoolean(
-                            "disable_perapprefresh",
-                            false
-                        )
-                    ),
-                    defaultRefreshMode()
-                )
-            )
+            val tempMode = sharedPreferences.refreshModeFor(this)
             if (tempMode != currentMode) {
                 currentMode = tempMode
             }
@@ -72,6 +60,16 @@ class RefreshModeManager(
         )
     }
 }
+
+fun SharedPreferences.refreshModeFor(packageName: String) = RefreshMode.fromInt(
+    getInt(
+        packageName.toSharedPreferencesKey(!getBoolean("disable_perapprefresh", false)),
+        defaultRefreshMode()
+    )
+)
+
+private fun SharedPreferences.defaultRefreshMode() =
+    getString("refresh_setting", "2")?.let(Integer::parseInt) ?: RefreshMode.SMOOTH.mode
 
 private fun String.toSharedPreferencesKey(isPerAppEnabled: Boolean): String {
     if (isPerAppEnabled) {

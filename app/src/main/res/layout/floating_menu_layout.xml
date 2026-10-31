@@ -183,4 +183,58 @@
             android:text="Manual"/>
     </LinearLayout>
 
+    <LinearLayout
+        android:id="@+id/colors_header"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_gravity="center">
+
+        <TextView
+            android:id="@+id/colors_reset"
+            android:layout_width="70dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="5dp"
+            android:textAlignment="center"
+            android:textSize="15sp"
+            android:textColor="@color/black"
+            android:text="@string/reset" />
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="5dp"
+            android:layout_weight="1"
+            android:textAlignment="center"
+            android:textSize="15sp"
+            android:textColor="@color/black"
+            android:text="@string/colors" />
+
+        <TextView
+            android:id="@+id/recolor_toggle"
+            android:layout_width="70dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="5dp"
+            android:textAlignment="center"
+            android:textSize="15sp"
+            android:textColor="@color/black"
+            android:text="ON" />
+    </LinearLayout>
+
+    <include
+        android:id="@+id/line_threshold"
+        layout="@layout/color_slider_row" />
+
+    <include
+        android:id="@+id/panel_contrast"
+        layout="@layout/color_slider_row" />
+
+    <include
+        android:id="@+id/panel_black"
+        layout="@layout/color_slider_row" />
+
+    <include
+        android:id="@+id/panel_white"
+        layout="@layout/color_slider_row" />
+
 </LinearLayout>

@@ -32,6 +32,10 @@ import android.widget.SeekBar
 import android.widget.TextView
 import androidx.preference.PreferenceManager
 import com.lmqr.ha9_comp_service.button_mapper.ButtonActionManager
+import com.lmqr.ha9_comp_service.colors.AppColorsManager
+import com.lmqr.ha9_comp_service.colors.ColorKeys
+import com.lmqr.ha9_comp_service.colors.bindColors
+import com.lmqr.ha9_comp_service.colors.showColors
 import com.lmqr.ha9_comp_service.command_runners.CommandRunner
 import com.lmqr.ha9_comp_service.command_runners.Commands
 import com.lmqr.ha9_comp_service.command_runners.UnixSocketCommandRunner
@@ -46,6 +50,7 @@ class A9AccessibilityService : AccessibilityService(),
     private lateinit var staticAODOpacityManager: StaticAODOpacityManager
     private lateinit var sharedPreferences: SharedPreferences
     private lateinit var buttonActionManager: ButtonActionManager
+    private lateinit var appColorsManager: AppColorsManager
     private var isScreenOn = true
 
     private val receiver: BroadcastReceiver = object : BroadcastReceiver() {
@@ -116,6 +121,7 @@ class A9AccessibilityService : AccessibilityService(),
         )
 
         buttonActionManager = ButtonActionManager(commandRunner)
+        appColorsManager = AppColorsManager(sharedPreferences, commandRunner)
 
         val filterScreen = IntentFilter()
         filterScreen.addAction(Intent.ACTION_SCREEN_ON)
@@ -241,6 +247,7 @@ class A9AccessibilityService : AccessibilityService(),
                     staticAodText.visibility = staticAodVisibility
                     staticAodLinearLayout.visibility = staticAodVisibility
                     updateButtons(staticAODOpacityManager.currentOpacity, staticAODOpacityManager.isReader)
+                    showColors(appColorsManager)
                 }
             } ?: run {
 
@@ -365,6 +372,7 @@ class A9AccessibilityService : AccessibilityService(),
 
                     updateButtons(refreshModeManager.currentMode)
                     updateButtons(staticAODOpacityManager.currentOpacity, staticAODOpacityManager.isReader)
+                    bindColors(appColorsManager)
 
                     wm.addView(root, layoutParams)
                 }
@@ -396,6 +404,8 @@ class A9AccessibilityService : AccessibilityService(),
                 menuBinding.updateButtons(refreshModeManager.currentMode)
                 staticAODOpacityManager.onAppChange(pkgName)
                 menuBinding.updateButtons(staticAODOpacityManager.currentOpacity, staticAODOpacityManager.isReader)
+                appColorsManager.onAppChange(pkgName)
+                menuBinding.showColors(appColorsManager)
             } catch (_: PackageManager.NameNotFoundException) {
             }
         }
@@ -424,6 +434,10 @@ class A9AccessibilityService : AccessibilityService(),
 
             "static_lockscreen_opacity", "static_lockscreen_type", "static_lockscreen_bg_opacity", "static_lockscreen_mix_color" -> {
                 staticAODOpacityManager.applyMode()
+            }
+
+            ColorKeys.EPD_CONTRAST, ColorKeys.EPD_BLACK, ColorKeys.EPD_WHITE -> {
+                appColorsManager.applyPanelLevels()
             }
 
             "color_scheme_type", "color_scheme_color" -> {
