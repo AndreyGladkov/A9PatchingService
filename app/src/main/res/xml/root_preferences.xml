@@ -149,4 +149,72 @@
             android:max="100"/>
     </PreferenceCategory>
 
+    <PreferenceCategory app:title="Colors">
+        <SwitchPreferenceCompat
+            app:key="colors_enabled"
+            app:title="Recolor Apps"
+            app:summary="Default for apps hooked by LSPosed; each app can override it in the pop-up"
+            app:defaultValue="true" />
+
+        <SeekBarPreference
+            app:key="colors_line_threshold"
+            app:title="Text and Icons Threshold"
+            app:summary="Darker than this becomes black, lighter becomes white"
+            app:showSeekBarValue="true"
+            app:min="0"
+            android:max="100"
+            app:defaultValue="70" />
+
+        <SeekBarPreference
+            app:key="colors_fill_dark"
+            app:title="Dark Fill Cutoff"
+            app:summary="Backgrounds darker than this become black"
+            app:showSeekBarValue="true"
+            app:min="0"
+            android:max="100"
+            app:defaultValue="50" />
+
+        <SeekBarPreference
+            app:key="colors_fill_light"
+            app:title="Light Fill Cutoff"
+            app:summary="Backgrounds lighter than this become white"
+            app:showSeekBarValue="true"
+            app:min="0"
+            android:max="100"
+            app:defaultValue="90" />
+
+        <SeekBarPreference
+            app:key="colors_light_gray"
+            app:title="Light Gray Level"
+            app:summary="Backgrounds between the cutoffs in Clear mode"
+            app:showSeekBarValue="true"
+            app:min="0"
+            android:max="100"
+            app:defaultValue="80" />
+
+        <SeekBarPreference
+            app:key="colors_epd_contrast"
+            app:title="Panel Contrast"
+            app:showSeekBarValue="true"
+            app:min="0"
+            android:max="100"
+            app:defaultValue="0" />
+
+        <SeekBarPreference
+            app:key="colors_epd_black"
+            app:title="Panel Black Threshold"
+            app:showSeekBarValue="true"
+            app:min="0"
+            android:max="100"
+            app:defaultValue="30" />
+
+        <SeekBarPreference
+            app:key="colors_epd_white"
+            app:title="Panel White Threshold"
+            app:showSeekBarValue="true"
+            app:min="0"
+            android:max="100"
+            app:defaultValue="20" />
+    </PreferenceCategory>
+
 </PreferenceScreen>

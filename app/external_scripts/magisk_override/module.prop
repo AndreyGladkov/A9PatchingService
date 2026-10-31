@@ -1,0 +1,6 @@
+id=a9service_override
+name=A9 Service override
+version=3.8.1-colors
+versionCode=40
+author=AndreyGladkov
+description=Replaces /system/priv-app/a9service.apk with the build that adds per-app colors

@@ -11,4 +11,10 @@
     <string name="opaque">Opaque</string>
     <string name="semiopaque">Semiopaque</string>
     <string name="semiclear">Semiclear</string>
+    <string name="colors">Colors</string>
+    <string name="reset">Reset</string>
+    <string name="text_and_icons">Text/icons</string>
+    <string name="panel_contrast">Contrast</string>
+    <string name="panel_black">Black</string>
+    <string name="panel_white">White</string>
 </resources>

@@ -24,7 +24,24 @@
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.Ha9_comp_service">
+        android:forceQueryable="true"
+        android:theme="@style/Theme.Ha9_comp_service"
+        tools:targetApi="r">
+        <meta-data
+            android:name="xposedmodule"
+            android:value="true" />
+        <meta-data
+            android:name="xposeddescription"
+            android:value="Recolors text, icons and backgrounds for the A9 e-ink panel" />
+        <meta-data
+            android:name="xposedminversion"
+            android:value="82" />
+
+        <provider
+            android:name=".colors.ColorSettingsProvider"
+            android:authorities="com.lmqr.ha9_comp_service.colors"
+            android:exported="true" />
+
         <activity
             android:name=".SettingsActivity"
             android:exported="true"
