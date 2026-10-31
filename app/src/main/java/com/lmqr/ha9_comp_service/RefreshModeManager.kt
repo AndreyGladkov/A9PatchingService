@@ -21,8 +21,12 @@ class RefreshModeManager(
 ) {
     var currentMode = RefreshMode.SMOOTH
         private set(v) {
-            field = v; applyMode()
+            field = v
+            if (temporaryMode == null) applyMode()
         }
+
+    /** Set by another app (e.g. a keyboard while it is shown) without becoming the app's saved mode. */
+    private var temporaryMode: RefreshMode? = null
     init {
         currentMode = RefreshMode.fromInt(defaultRefreshMode())
     }
@@ -39,8 +43,23 @@ class RefreshModeManager(
         }
     }
 
+    fun overrideTemporarily(refreshMode: RefreshMode) {
+        temporaryMode = refreshMode
+        applyMode()
+    }
+
+    fun clearTemporaryMode() {
+        if (temporaryMode == null) return
+        temporaryMode = null
+        applyMode()
+    }
+
     fun changeMode(refreshMode: RefreshMode) {
-        if (refreshMode != currentMode) {
+        val hadTemporaryMode = temporaryMode != null
+        temporaryMode = null
+        if (refreshMode == currentMode) {
+            if (hadTemporaryMode) applyMode()
+        } else {
             currentMode = refreshMode
             sharedPreferences.edit()
                 .putInt(
@@ -56,7 +75,7 @@ class RefreshModeManager(
 
     fun applyMode() {
         commandRunner.runCommands(
-            arrayOf(currentMode.command)
+            arrayOf((temporaryMode ?: currentMode).command)
         )
     }
 }
