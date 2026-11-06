@@ -12,6 +12,7 @@ import android.content.IntentFilter
 import android.content.SharedPreferences
 import android.content.pm.PackageManager
 import android.graphics.Color
+import android.graphics.Typeface
 import android.graphics.PixelFormat
 import android.graphics.Point
 import android.net.Uri
@@ -35,6 +36,7 @@ import com.lmqr.ha9_comp_service.button_mapper.ButtonActionManager
 import com.lmqr.ha9_comp_service.colors.AppColorsManager
 import com.lmqr.ha9_comp_service.colors.ColorKeys
 import com.lmqr.ha9_comp_service.colors.bindColors
+import com.lmqr.ha9_comp_service.colors.showColorsSection
 import com.lmqr.ha9_comp_service.colors.showColors
 import com.lmqr.ha9_comp_service.command_runners.CommandRunner
 import com.lmqr.ha9_comp_service.command_runners.Commands
@@ -260,6 +262,7 @@ class A9AccessibilityService : AccessibilityService(),
                     enableReaderModeText.setIsReader(staticAODOpacityManager.isReader)
                     staticAodText.visibility = staticAodVisibility
                     staticAodLinearLayout.visibility = staticAodVisibility
+                    showColorsSection(sharedPreferences)
                     updateButtons(staticAODOpacityManager.currentOpacity, staticAODOpacityManager.isReader)
                     showColors(appColorsManager)
                 }
@@ -277,10 +280,14 @@ class A9AccessibilityService : AccessibilityService(),
                     width = WindowManager.LayoutParams.MATCH_PARENT
                     height = WindowManager.LayoutParams.WRAP_CONTENT
                     gravity = Gravity.BOTTOM
-                    y = getNavBarHeight()
+                    y = menuBottomOffset(
+                        Settings.Secure.getInt(contentResolver, NAVIGATION_MODE, 0),
+                        getNavBarHeight(),
+                    )
                 }
 
                 menuBinding = FloatingMenuLayoutBinding.bind(view).apply {
+                    applyMenuShape(this@A9AccessibilityService)
                     root.setOnTouchListener { _, event ->
                         if (event.action == MotionEvent.ACTION_OUTSIDE)
                             close()
@@ -386,7 +393,7 @@ class A9AccessibilityService : AccessibilityService(),
 
                     updateButtons(refreshModeManager.currentMode)
                     updateButtons(staticAODOpacityManager.currentOpacity, staticAODOpacityManager.isReader)
-                    bindColors(appColorsManager)
+                    bindColors(appColorsManager, sharedPreferences)
 
                     wm.addView(root, layoutParams)
                 }
@@ -526,23 +533,16 @@ fun FloatingMenuLayoutBinding?.updateButtons(mode: AODOpacity, isReader: Boolean
 }
 
 fun Button.deselect() {
-    setBackgroundResource(R.drawable.drawable_border_normal)
+    setBackgroundColor(Color.TRANSPARENT)
     setTextColor(Color.BLACK)
 }
 
 fun Button.select() {
-    setBackgroundResource(R.drawable.drawable_border_pressed)
+    setBackgroundColor(Color.BLACK)
     setTextColor(Color.WHITE)
 }
 
 fun TextView.setIsReader(isReader: Boolean) {
-    text = if(isReader)
-        "ON"
-    else
-        "OFF"
-    val endDrawableId = if(isReader)
-        R.drawable.baseline_book_24
-    else
-        R.drawable.baseline_book_closed_24
-    setCompoundDrawablesWithIntrinsicBounds(0, 0, endDrawableId, 0)
+    setText(if (isReader) R.string.reader_on else R.string.reader_off)
+    setTypeface(null, if (isReader) Typeface.BOLD else Typeface.NORMAL)
 }
