@@ -31,7 +31,7 @@ class ColorSettingsProvider : ContentProvider() {
     ): Cursor? {
         val packageName = uri.lastPathSegment ?: return null
         return MatrixCursor(COLUMNS).apply {
-            sharedPreferences.recolorConfigFor(packageName)?.let { addRow(it.toRow()) }
+            addRow(sharedPreferences.hookConfigFor(packageName).toRow())
         }
     }
 
@@ -55,24 +55,33 @@ class ColorSettingsProvider : ContentProvider() {
         val BASE_URI: Uri = Uri.parse("content://$AUTHORITY/app")
 
         private val COLUMNS = arrayOf(
-            "line_threshold", "fill_levels", "fill_dark_cutoff", "fill_light_cutoff", "light_gray"
+            "recolor", "line_threshold", "fill_levels", "fill_dark_cutoff", "fill_light_cutoff",
+            "light_gray", "dither_images",
         )
 
         fun appUri(packageName: String): Uri = BASE_URI.buildUpon().appendPath(packageName).build()
 
-        fun recolorConfigFrom(cursor: Cursor): RecolorConfig? {
+        fun hookConfigFrom(cursor: Cursor): HookConfig? {
             if (!cursor.moveToFirst())
                 return null
-            return RecolorConfig(
-                lineThreshold = cursor.getInt(0),
-                fillLevels = FillLevels.entries[cursor.getInt(1)],
-                fillDarkCutoff = cursor.getInt(2),
-                fillLightCutoff = cursor.getInt(3),
-                lightGray = cursor.getInt(4),
+            val recolor = if (cursor.getInt(0) == 0) null else RecolorConfig(
+                lineThreshold = cursor.getInt(1),
+                fillLevels = FillLevels.entries[cursor.getInt(2)],
+                fillDarkCutoff = cursor.getInt(3),
+                fillLightCutoff = cursor.getInt(4),
+                lightGray = cursor.getInt(5),
             )
+            return HookConfig(recolor, ditherImages = cursor.getInt(6) != 0)
         }
 
-        private fun RecolorConfig.toRow() =
-            arrayOf(lineThreshold, fillLevels.ordinal, fillDarkCutoff, fillLightCutoff, lightGray)
+        private fun HookConfig.toRow() = arrayOf(
+            if (recolor == null) 0 else 1,
+            recolor?.lineThreshold ?: 0,
+            recolor?.fillLevels?.ordinal ?: 0,
+            recolor?.fillDarkCutoff ?: 0,
+            recolor?.fillLightCutoff ?: 0,
+            recolor?.lightGray ?: 0,
+            if (ditherImages) 1 else 0,
+        )
     }
 }

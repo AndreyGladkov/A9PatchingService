@@ -17,11 +17,15 @@ data class RecolorConfig(
 
 // Same integer weights the A9 vendor composer uses to turn a frame into grey
 // before applying the e-ink lookup tables, so thresholds match what the panel shows.
+const val PANEL_LUMA_RED = 76
+const val PANEL_LUMA_GREEN = 150
+const val PANEL_LUMA_BLUE = 30
+
 fun panelLuma(color: Int): Int {
     val r = color shr 16 and 0xFF
     val g = color shr 8 and 0xFF
     val b = color and 0xFF
-    return (76 * r + 150 * g + 30 * b) shr 8
+    return (PANEL_LUMA_RED * r + PANEL_LUMA_GREEN * g + PANEL_LUMA_BLUE * b) shr 8
 }
 
 class ColorMapper(private val config: RecolorConfig) {

@@ -14,6 +14,7 @@ object ColorKeys {
     const val EPD_CONTRAST = "colors_epd_contrast"
     const val EPD_BLACK = "colors_epd_black"
     const val EPD_WHITE = "colors_epd_white"
+    const val DITHER_IMAGES = "colors_dither_images"
 
     val perApp = listOf(ENABLED, LINE_THRESHOLD, EPD_CONTRAST, EPD_BLACK, EPD_WHITE)
 
@@ -30,6 +31,7 @@ object ColorDefaults {
     const val FILL_DARK = 50
     const val FILL_LIGHT = 90
     const val LIGHT_GRAY = 80
+    const val DITHER_IMAGES = true
 
     // Values the A9 kernel driver reports after boot.
     const val EPD_CONTRAST = 0
@@ -75,6 +77,18 @@ fun SharedPreferences.recolorConfigFor(packageName: String): RecolorConfig? {
             .coerceIn(dark, light),
     )
 }
+
+data class HookConfig(val recolor: RecolorConfig?, val ditherImages: Boolean)
+
+fun SharedPreferences.hookConfigFor(packageName: String) = HookConfig(
+    recolor = recolorConfigFor(packageName),
+    ditherImages = getBoolean(ColorKeys.DITHER_IMAGES, ColorDefaults.DITHER_IMAGES) &&
+        ditherImagesIn(refreshModeFor(packageName)),
+)
+
+// Clear shows 16 grey levels without dithering, so smooth tones in photos band into
+// visible steps. The other modes already dither on the panel controller.
+fun ditherImagesIn(mode: RefreshMode) = mode == RefreshMode.CLEAR
 
 // Every mode except Clear dithers the frame to 1 bit, so an intermediate grey turns into
 // a dot pattern on the glass.
