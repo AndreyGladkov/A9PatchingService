@@ -1527,7 +1527,10 @@ def patch_CallUI():
         [
             FunctionPatch(action=patch_AddTintToCall)
         ]
-    ).patch(sign = True, use_res = True, use_src = False, api = 29)
+    # Without the image's own framework apktool decodes against its bundled one, whose resource
+    # ids differ: styles then point at unrelated private strings and the rebuild fails.
+    ).patch(install = ["d/system/framework/framework-res.apk"], sign = True, use_res = True,
+            use_src = False, api = 29)
 
 def update_build_prop():
     properties = {
