@@ -32,7 +32,21 @@ object CanvasHooks {
     fun install(session: RecolorSession) {
         XposedHelpers.findClass(RECORDING_CANVAS, null).declaredMethods
             .filter { Modifier.isPublic(it.modifiers) }
-            .forEach { method -> hookFor(method, session)?.let { XposedBridge.hookMethod(method, it) } }
+            .forEach { method -> hooksFor(method, session).forEach { XposedBridge.hookMethod(method, it) } }
+    }
+
+    private fun hooksFor(method: Method, session: RecolorSession): List<XC_MethodHook> =
+        listOfNotNull(ditherHookFor(method, session), hookFor(method, session))
+
+    private fun ditherHookFor(method: Method, session: RecolorSession): XC_MethodHook? {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU)
+            return null
+        val paintIndex = method.parameterTypes.indexOf(Paint::class.java)
+        return when (method.name) {
+            "drawBitmap" -> ImageDitherHook.forMethod(method, session)
+            in shapeMethods -> paintIndex.takeIf { it >= 0 }?.let { ImageShaderDitherHook(session, it) }
+            else -> null
+        }
     }
 
     private fun hookFor(method: Method, session: RecolorSession): XC_MethodHook? {

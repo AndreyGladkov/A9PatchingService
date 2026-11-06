@@ -14,6 +14,7 @@ import android.os.Looper
 import androidx.annotation.RequiresApi
 import com.lmqr.ha9_comp_service.colors.ColorMapper
 import com.lmqr.ha9_comp_service.colors.ColorSettingsProvider
+import com.lmqr.ha9_comp_service.colors.HookConfig
 import com.lmqr.ha9_comp_service.colors.RecolorConfig
 import de.robv.android.xposed.XposedBridge
 import de.robv.android.xposed.XposedHelpers
@@ -45,7 +46,10 @@ class RecolorSession(private val packageName: String) {
     @Volatile
     var palette: Palette? = null
         private set
-    private var config: RecolorConfig? = null
+    @Volatile
+    var ditherImages = false
+        private set
+    private var config: HookConfig? = null
 
     fun attach(application: Application) {
         val resolver = application.contentResolver
@@ -69,7 +73,7 @@ class RecolorSession(private val packageName: String) {
     private fun reload(resolver: ContentResolver): Boolean {
         val loaded = try {
             resolver.query(ColorSettingsProvider.appUri(packageName), null, null, null, null)
-                ?.use(ColorSettingsProvider::recolorConfigFrom)
+                ?.use(ColorSettingsProvider::hookConfigFrom)
         } catch (e: RuntimeException) {
             XposedBridge.log(e)
             null
@@ -78,7 +82,8 @@ class RecolorSession(private val packageName: String) {
             return false
 
         config = loaded
-        palette = loaded?.let(::Palette)
+        palette = loaded?.recolor?.let(::Palette)
+        ditherImages = loaded?.ditherImages == true
         return true
     }
 }

@@ -76,6 +76,44 @@ class ColorSettingsTest {
     }
 
     @Test
+    fun `images are dithered in clear refresh mode by default`() {
+        val prefs = FakeSharedPreferences("package:$app" to RefreshMode.CLEAR.mode)
+
+        assertTrue(prefs.hookConfigFor(app).ditherImages)
+    }
+
+    @Test
+    fun `images are not dithered in modes the panel dithers itself`() {
+        listOf(RefreshMode.BALANCED, RefreshMode.SMOOTH, RefreshMode.SPEED).forEach { mode ->
+            val prefs = FakeSharedPreferences("package:$app" to mode.mode)
+
+            assertFalse(mode.name, prefs.hookConfigFor(app).ditherImages)
+        }
+    }
+
+    @Test
+    fun `image dithering can be switched off`() {
+        val prefs = FakeSharedPreferences(
+            "package:$app" to RefreshMode.CLEAR.mode,
+            ColorKeys.DITHER_IMAGES to false,
+        )
+
+        assertFalse(prefs.hookConfigFor(app).ditherImages)
+    }
+
+    @Test
+    fun `image dithering does not depend on recolor`() {
+        val prefs = FakeSharedPreferences(
+            "package:$app" to RefreshMode.CLEAR.mode,
+            ColorKeys.forApp(ColorKeys.ENABLED, app) to false,
+        )
+        val config = prefs.hookConfigFor(app)
+
+        assertNull(config.recolor)
+        assertTrue(config.ditherImages)
+    }
+
+    @Test
     fun `light grey is kept between fill cutoffs`() {
         val prefs = FakeSharedPreferences(
             ColorKeys.FILL_DARK to 40,
@@ -111,6 +149,7 @@ class ColorSettingsTest {
             ColorKeys.forApp(ColorKeys.ENABLED, app),
             ColorKeys.forApp(ColorKeys.LINE_THRESHOLD, app),
             ColorKeys.FILL_LIGHT,
+            ColorKeys.DITHER_IMAGES,
             "package:$app",
             "refresh_setting",
             "disable_perapprefresh",
