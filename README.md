@@ -17,6 +17,25 @@ Flashing the resulting file is done the same as any other system.img
 - after that's done, run `fastboot -w`
 - run `fastboot reboot` and give it a few minutes
 
+## Android 16 GSIs
+
+Tested with LineageOS 23.2 (Android 16 QPR2) by MisterZtr on the stock Android 11 vendor.
+
+Building the image:
+
+- Use an **ext4** build of the GSI. EROFS builds need kernel 5.4+, the A9 runs 4.19.
+- The patcher needs apktool **2.x** (`apktool b -c` was removed in 3.x), plus `apksigner`, `zipalign` and `setfattr`.
+
+What the patcher skips:
+
+TrebleApp, SystemUI and Dialer must be signed with the GSI's platform key. The bundled `platform.pk8` is the AOSP test key, so on a GSI signed with any other key the patcher leaves these three apps untouched and logs a warning. Otherwise `system_server` aborts at boot with a shared-user signature mismatch. On such a GSI you lose the SystemUI e-ink tweaks (static lockscreen and AoD, scrim) and the in-call UI tint, while the e-ink service, refresh modes and frontlight keep working.
+
+After the first boot, set once:
+
+- **Settings → System → Developer options → Window animation scale, Transition animation scale, Animator duration scale → Animation off.** Every animation frame reaches the panel, so with animations on the screen flashes and can stop on an intermediate frame.
+- **Settings → System → Gestures → Navigation mode → Gesture navigation.** With 3-button navigation the bar covers the bottom of the E-Ink menu, and a touch there closes it.
+- **Settings → System → TrebleDroid Settings → Misc features → Disable HW overlays.** The panel only shows GPU-composed frames, so with HW overlays the camera viewfinder stays black and some frames never appear. The bundled TrebleApp enables this by default, but the GSI's own TrebleApp turns HW overlays back on at every boot until this switch is set.
+
 Default E-ink features Usage:
 
 **Single Press E-Ink Button** - Refresh Screen

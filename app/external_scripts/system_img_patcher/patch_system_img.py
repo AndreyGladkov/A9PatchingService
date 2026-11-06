@@ -1,8 +1,11 @@
 from smali_patcher import *
+import base64
+import hashlib
 import sys
 import re
 import os
 import shutil
+import struct
 import subprocess
 import xml.etree.ElementTree as ET
 import logging
@@ -29,6 +32,31 @@ class MountImage:
     def __exit__(self, exc_type, exc_value, traceback):
         run_command(f'umount {self.mount_point}')
         logging.info(f"Unmounted {self.image_path} from {self.mount_point}")
+
+ANDROID_14_SDK = 34
+WAKE_REASON_POWER_BUTTON = 1
+VIBRATION_SCALE_BOOST = 0.3
+
+def certificate_sha256(pem_path):
+    with open(pem_path, "r") as file:
+        pem = file.read()
+    der_base64 = "".join(line for line in pem.splitlines() if line and not line.startswith("-----"))
+    return hashlib.sha256(base64.b64decode(der_base64)).hexdigest()
+
+def gsi_signed_with_platform_key(framework_res_path):
+    certificates = run_command(f'apksigner verify --print-certs "{framework_res_path}"', quiet = True)
+    signer_digests = re.findall(r"certificate SHA-256 digest: ([0-9a-f]{64})", certificates)
+    return certificate_sha256("../platform.x509.pem") in signer_digests
+
+def float_bits(value):
+    return hex(struct.unpack('>I', struct.pack('>f', value))[0])
+
+def read_system_sdk(build_prop_path):
+    with open(build_prop_path, "r") as file:
+        for line in file:
+            if line.startswith("ro.build.version.sdk="):
+                return int(line.split("=", 1)[1])
+    raise ValueError(f"ro.build.version.sdk not found in {build_prop_path}")
 
 keep_scale_count = 0
 def patch_OverrideAnimatorScale(instruction):
@@ -66,6 +94,33 @@ def patch_services_jar():
                 f'invoke-static {{{register1}, {register2}}}, Landroid/os/SystemProperties;->set(Ljava/lang/String;Ljava/lang/String;)V',
             ]
 
+    def load_vibration_caller_info(method, register):
+        package = method.parent.base_dir
+        if 'SingleVibrationSession' in method.details.parameters:
+            return [
+                f'invoke-virtual {{p1}}, {package}/SingleVibrationSession;->getCallerInfo(){package}/VibrationSession$CallerInfo;',
+                f'move-result-object {register}',
+            ], f'{package}/VibrationSession$CallerInfo;'
+        return [
+            f'iget-object {register}, p1, {package}/Vibration;->callerInfo:{package}/Vibration$CallerInfo;',
+        ], f'{package}/Vibration$CallerInfo;'
+
+    def patch_scaleLevelToScaleFactor(method):
+        new_method = SmaliMethod(method.header, method.parent)
+        new_method.name = "tempScaleLevelToScaleFactor"
+        method.parent.items.append(('method', new_method))
+        method.name = "originalScaleLevelToScaleFactor"
+        new_method.add_instruction('.locals 1')
+        for instruction in [
+            f'invoke-virtual {{p0, p1}}, {method.parent.class_name}->originalScaleLevelToScaleFactor(I)F',
+            'move-result v0',
+            'mul-float v0, v0, v0',
+            f'const p1, {float_bits(VIBRATION_SCALE_BOOST)}',
+            'add-float v0, v0, p1',
+            'return v0',
+        ]:
+            new_method.add_instruction(instruction)
+
     invokeVibrationLocked = None
     def extract_invokeVibrationLocked(instruction):
         nonlocal invokeVibrationLocked
@@ -95,9 +150,9 @@ def patch_services_jar():
         method.parent.items.append(('method', new_method))
         method.name = "originalStartVibrationLocked"
         new_method.add_instruction('.locals 5')
-        for instruction in [
-            f'iget-object v0, p1, {method.parent.base_dir}/Vibration;->callerInfo:{method.parent.base_dir}/Vibration$CallerInfo;',
-            f'iget-object v0, v0, {method.parent.base_dir}/Vibration$CallerInfo;->attrs:Landroid/os/VibrationAttributes;',
+        load_caller_info, caller_info_class = load_vibration_caller_info(method, 'v0')
+        for instruction in load_caller_info + [
+            f'iget-object v0, v0, {caller_info_class}->attrs:Landroid/os/VibrationAttributes;',
             'invoke-virtual {v0}, Landroid/os/VibrationAttributes;->getUsage()I',
             'move-result v0',
             'const/16 v1, 0x0',
@@ -456,6 +511,32 @@ def patch_services_jar():
             f"invoke-virtual {{{instruction.registers[0]}, {registers[0]}}}, Landroid/animation/ObjectAnimator;->setInterpolator(Landroid/animation/TimeInterpolator;)V",
         ])
 
+    def wake_up_from_power_key(phone_window_manager):
+        class_name = phone_window_manager.class_name
+        if phone_window_manager.has_method(MethodDetails(name = "wakeUpFromPowerKey", parameters = "J")):
+            return [f'invoke-direct {{p0, v1, v2}}, {class_name}->wakeUpFromPowerKey(J)V']
+        wake_up_policy = 'Lcom/android/server/policy/WindowWakeUpPolicy;'
+        return [
+            f'iget-object v3, p0, {class_name}->mWindowWakeUpPolicy:{wake_up_policy}',
+            f'const/4 v4, {hex(WAKE_REASON_POWER_BUTTON)}',
+            'const-string v5, "android.policy:POWER"',
+            f'invoke-virtual {{v3, v1, v2, v4, v5}}, {wake_up_policy}->wakeUp(JILjava/lang/String;)V',
+        ]
+
+    input_manager = (
+        'Landroid/hardware/input/InputManagerGlobal;'
+        if read_system_sdk("d/system/build.prop") >= ANDROID_14_SDK
+        else 'Landroid/hardware/input/InputManager;'
+    )
+
+    def inject_input_event(event_register):
+        return [
+            f'invoke-static {{}}, {input_manager}->getInstance(){input_manager}',
+            'move-result-object v0',
+            'const/4 v2, 0x0',
+            f'invoke-virtual {{v0, {event_register}, v2}}, {input_manager}->injectInputEvent(Landroid/view/InputEvent;I)Z',
+        ]
+
     def patch_interceptKeyBeforeQueueing(method):
         first_instruction = method.first_instruction
         first_instruction.expand_after([
@@ -595,7 +676,7 @@ def patch_services_jar():
                         '.method private handleVolumeKeyEventDown(Landroid/view/KeyEvent;)Z',
                         method.parent,
                         initial_instructions = [
-                            '.locals 4',
+                            '.locals 6',
                             # SKIP KEYGUARD CHANGES IF INTERACTIVE
                             f'iget-object v0, p0, {method.parent.class_name}->mPowerManager:Landroid/os/PowerManager;',
                             'invoke-virtual {v0}, Landroid/os/PowerManager;->isInteractive()Z',
@@ -634,7 +715,7 @@ def patch_services_jar():
                             # WAKE UP AND ACQUIRE WAKELOCK
                             'invoke-static {}, Landroid/os/SystemClock;->uptimeMillis()J',
                             'move-result-wide v1',
-                            f'invoke-direct {{p0, v1, v2}}, {method.parent.class_name}->wakeUpFromPowerKey(J)V',
+                        ] + wake_up_from_power_key(method.parent) + [
                             f'const-wide v1, {hex(2300)}',
                             'invoke-virtual {v0, v1, v2}, Landroid/os/PowerManager$WakeLock;->acquire(J)V',
 
@@ -685,10 +766,7 @@ def patch_services_jar():
                     '.locals 3',
                     f'iget-object v1, p0, {method.parent.class_name}->mLastUpKeyEvent:Landroid/view/KeyEvent;',
                     'if-eqz v1, :no_up_event',
-                    'invoke-static {}, Landroid/hardware/input/InputManager;->getInstance()Landroid/hardware/input/InputManager;',
-                    'move-result-object v0',
-                    'const/4 v2, 0x0',
-                    'invoke-virtual {v0, v1, v2}, Landroid/hardware/input/InputManager;->injectInputEvent(Landroid/view/InputEvent;I)Z',
+                ] + inject_input_event('v1') + [
                     'const v0, 0x0',
                     f'iput-object v0, p0, {method.parent.class_name}->mLastUpKeyEvent:Landroid/view/KeyEvent;',
                     ':no_up_event',
@@ -706,10 +784,7 @@ def patch_services_jar():
                     '.locals 3',
                     f'iget-object v1, p0, {method.parent.class_name}->mLastDownKeyEvent:Landroid/view/KeyEvent;',
                     'if-eqz v1, :no_down_event',
-                    'invoke-static {}, Landroid/hardware/input/InputManager;->getInstance()Landroid/hardware/input/InputManager;',
-                    'move-result-object v0',
-                    'const/4 v2, 0x0',
-                    'invoke-virtual {v0, v1, v2}, Landroid/hardware/input/InputManager;->injectInputEvent(Landroid/view/InputEvent;I)Z',
+                ] + inject_input_event('v1') + [
                     'const v0, 0x0',
                     f'iput-object v0, p0, {method.parent.class_name}->mLastDownKeyEvent:Landroid/view/KeyEvent;',
                     ':no_down_event',
@@ -1013,7 +1088,15 @@ def patch_services_jar():
                             type = "F",
                             value = Matcher.regex(r"\d+\.\d+f"),
                         ),
-                        action = lambda field: setattr(field, 'value', f'{float(str(field.value)[:-1])**2.0+0.3:.1f}f')
+                        action = lambda field: setattr(field, 'value', f'{float(str(field.value)[:-1])**2.0+VIBRATION_SCALE_BOOST:.1f}f')
+                    ),
+                    InstructionPatch(
+                        method = "scaleLevelToScaleFactor",
+                        action = patch_scaleLevelToScaleFactor,
+                    ),
+                    InstructionPatch(
+                        method = "tempScaleLevelToScaleFactor",
+                        action = lambda method: setattr(method, 'name', 'scaleLevelToScaleFactor'),
                     ),
                 ]
             ),
@@ -1087,6 +1170,43 @@ def patch_systemui():
         },
     }
     scrim_enum_triples = list((key1, key2, value) for key1, nested_dict in values_per_scrim_enum.items() for key2, value in nested_dict.items())
+
+    def force_scrim_value(smali_class, key, value):
+        smali_class.for_instruction(
+            InstructionDetails(
+              instruction_type = InstructionType.FIELD_WRITE,
+              field_name = key,
+            ),
+            lambda nested_insr: nested_insr.insert_before(f"const{nested_insr.modifier} {nested_insr.registers[0]}, {value}")
+        )
+
+    def find_smali_file(file_name):
+        for root, _, files in os.walk("."):
+            if file_name in files:
+                return os.path.join(root, file_name)
+        return None
+
+    def patch_ScrimStatesNamedByBaseConstructor():
+        base_path = find_smali_file("ScrimState.smali")
+        if base_path is None:
+            return
+        with open(base_path, "r") as file:
+            base_smali = file.read()
+        named_subclasses = re.findall(
+            r'new-instance (v\d+), L[\w/]+/(ScrimState\$\d+);'
+            r'(?:(?!new-instance).)*?const-string v\d+, "(\w+)"'
+            r'(?:(?!new-instance).)*?invoke-direct \{\1, [^}]*\}, L[\w/]+/ScrimState;-><init>\(Ljava/lang/String;I\)V',
+            base_smali,
+            re.DOTALL,
+        )
+        for _, subclass, enum in named_subclasses:
+            if enum not in values_per_scrim_enum:
+                continue
+            subclass_file = SmaliFile(os.path.join(os.path.dirname(base_path), f"{subclass}.smali"))
+            for key, value in values_per_scrim_enum[enum].items():
+                force_scrim_value(subclass_file.smali_class, key, value)
+            subclass_file.save_file()
+
     wallpaper_flag_count = 0
     def patch_WallpaperFlags(instruction):
         nonlocal wallpaper_flag_count
@@ -1324,16 +1444,11 @@ def patch_systemui():
                           instruction_type = InstructionType.CONSTANT,
                           constant_value = Matcher.regex(rf'"?{enum}"?'),
                         ),
-                        action = lambda inst, key=key, value=value: inst.parent.parent.for_instruction(
-                            InstructionDetails(
-                              instruction_type = InstructionType.FIELD_WRITE,
-                              field_name = key,
-                            ),
-                            lambda nested_insr, value=value: nested_insr.insert_before(f"const{nested_insr.modifier} {nested_insr.registers[0]}, {value}")
-                        )
+                        action = lambda inst, key=key, value=value: force_scrim_value(inst.parent.parent, key, value)
                     ) for (enum, key, value) in scrim_enum_triples
                 )
             ),
+            FunctionPatch(action = patch_ScrimStatesNamedByBaseConstructor),
             FilePatch(
                 file_patterns = [
                     r".*[Ww]allpaper.*\.smali",
@@ -1457,8 +1572,31 @@ def update_build_prop():
             if key not in set([line.split("=")[0] for line in lines]):
                 file.write(f"{key}={value}\n")
 
+# Android 16 init rejects "$(" inside rc commands as deprecated property syntax,
+# so the accessibility shell logic has to live in a script instead of `sh -c`.
+ENABLE_ACCESSIBILITY_SCRIPT = "/system/bin/a9-enable-accessibility.sh"
+
+def install_enable_accessibility_script():
+    script_path = f"d{ENABLE_ACCESSIBILITY_SCRIPT}"
+    with open(script_path, "w") as file:
+        file.write(
+            '#!/system/bin/sh\n'
+            'new_service=com.lmqr.ha9_comp_service/.A9AccessibilityService\n'
+            'existing=$(/system/bin/settings get secure enabled_accessibility_services)\n'
+            'case "$existing" in\n'
+            '    *"$new_service"*) exit 0 ;;\n'
+            '    ""|null) updated=$new_service ;;\n'
+            '    *) updated="$existing:$new_service" ;;\n'
+            'esac\n'
+            '/system/bin/settings put secure enabled_accessibility_services "$updated"\n'
+        )
+    os.chmod(script_path, 0o755)
+    subprocess.run(["chown", "root:2000", script_path])
+    subprocess.run(["setfattr", "-n", "security.selinux", "-v", "u:object_r:system_file:s0", script_path])
+
 def update_vndk_rc():
     logging.info("Updating vndk init script...")
+    install_enable_accessibility_script()
     vndk_rc_path = "d/system/etc/init/vndk.rc"
     with open(vndk_rc_path, "r") as file:
         lines = file.readlines()
@@ -1467,7 +1605,7 @@ def update_vndk_rc():
         "    exec_background u:r:phhsu_daemon:s0 root -- /system/bin/cmd overlay enable me.phh.treble.overlay.misc.aod_systemui\n",
         "    exec_background u:r:phhsu_daemon:s0 root -- /system/bin/service call SurfaceFlinger 1008 i32 1\n",
         "    start a9_eink_server\n",
-        "    exec_background u:r:phhsu_daemon:s0 root -- /system/bin/sh -c 'existing=$(/system/bin/settings get secure enabled_accessibility_services); new_service=\"com.lmqr.ha9_comp_service/.A9AccessibilityService\"; if ! echo \"$existing\" | /system/bin/grep -q -F \"$new_service\"; then if [ -n \"$existing\" ]; then updated=\"$existing:$new_service\"; else updated=\"$new_service\"; fi; /system/bin/settings put secure enabled_accessibility_services \"$updated\"; fi'\n",
+        f"    exec_background u:r:phhsu_daemon:s0 root -- /system/bin/sh {ENABLE_ACCESSIBILITY_SCRIPT}\n",
         "    exec_background u:r:phhsu_daemon:s0 root -- /system/bin/appops set com.lmqr.ha9_comp_service SYSTEM_ALERT_WINDOW allow\n",
         "    exec_background u:r:phhsu_daemon:s0 root -- /system/bin/chmod 444 /sys/class/leds/aw99703-bl-1/brightness\n",
         "    exec_background u:r:phhsu_daemon:s0 root -- /system/bin/chmod 444 /sys/class/leds/aw99703-bl-2/brightness\n",
@@ -1530,7 +1668,14 @@ def main():
     run_command('e2fsck -E unshare_blocks -y -f s-ab-raw.img')
 
     with MountImage('s-ab-raw.img', 'd'):
-        replace_file("d/system/priv-app/TrebleApp/TrebleApp.apk")
+        platform_key_matches = gsi_signed_with_platform_key("d/system/framework/framework-res.apk")
+        if platform_key_matches:
+            replace_file("d/system/priv-app/TrebleApp/TrebleApp.apk")
+        else:
+            logging.warning(
+                "GSI is not signed with ../platform.x509.pem: skipping TrebleApp, SystemUI and Dialer, "
+                "because platform apps signed with another key make system_server abort on boot."
+            )
         replace_file("d/system/product/overlay/treble-overlay-Hisense-HLTE556N.apk")
         replace_file("d/system/bin/a9_eink_server", perms = 0o755, owner = "root:2000", secontext = "u:object_r:phhsu_exec:s0")
         replace_file("d/system/priv-app/a9service.apk")
@@ -1541,12 +1686,12 @@ def main():
         replace_file("d/system/app/ims-caf-u.apk")
         replace_file("d/system/etc/hosts")
         update_build_prop()
-        try:
-            patch_CallUI()
-            pass
-        except subprocess.CalledProcessError:
-            logging.warning('Dialer app patching error, skipping.')
-        patch_systemui()
+        if platform_key_matches:
+            try:
+                patch_CallUI()
+            except subprocess.CalledProcessError:
+                logging.warning('Dialer app patching error, skipping.')
+            patch_systemui()
         patch_services_jar()
         update_vndk_rc()
 
