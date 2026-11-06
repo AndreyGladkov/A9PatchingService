@@ -1,0 +1,75 @@
+package com.lmqr.ha9_comp_service.xposed
+
+import java.util.Base64
+
+object BlueNoise {
+    const val SIZE = 64
+
+    // 64x64 void-and-cluster blue noise (Ulichney 1993, Gaussian sigma 1.5): the
+    // dither ranks 0..4095 divided by 16, so every byte value occurs exactly 16 times.
+    // This is the pattern that removed banding in Clear on the A9 panel in camera tests.
+    private const val ENCODED = """
+    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
+    fqXK6BSC5ExzLqNiiLCaZ7x7nA1kHeNVFw==
+"""
+
+    val thresholds: ByteArray by lazy { Base64.getMimeDecoder().decode(ENCODED.trim()) }
+}

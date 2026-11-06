@@ -192,6 +192,12 @@
             android:max="100"
             app:defaultValue="80" />
 
+        <SwitchPreferenceCompat
+            app:key="colors_dither_images"
+            app:title="Dither Images in Clear"
+            app:summary="Spreads photos over the panel's 16 grey levels so gradients do not band. Works in apps hooked by LSPosed, even with recoloring off"
+            app:defaultValue="true" />
+
         <SeekBarPreference
             app:key="colors_epd_contrast"
             app:title="Panel Contrast"
