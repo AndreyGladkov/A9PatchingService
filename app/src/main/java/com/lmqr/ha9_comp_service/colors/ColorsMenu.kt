@@ -1,5 +1,7 @@
 package com.lmqr.ha9_comp_service.colors
 
+import android.content.SharedPreferences
+import android.view.View
 import android.widget.SeekBar
 import android.widget.TextView
 import androidx.annotation.StringRes
@@ -7,7 +9,26 @@ import com.lmqr.ha9_comp_service.R
 import com.lmqr.ha9_comp_service.databinding.ColorSliderRowBinding
 import com.lmqr.ha9_comp_service.databinding.FloatingMenuLayoutBinding
 
-fun FloatingMenuLayoutBinding.bindColors(manager: AppColorsManager) {
+private const val COLORS_SECTION_EXPANDED = "menu_colors_expanded"
+
+/** The section's toggle sits in the static AOD row, so with that row hidden it stays open. */
+fun isColorsSectionShown(expanded: Boolean, staticAodRowShown: Boolean) =
+    expanded || !staticAodRowShown
+
+fun FloatingMenuLayoutBinding.showColorsSection(prefs: SharedPreferences) {
+    val shown = isColorsSectionShown(
+        prefs.getBoolean(COLORS_SECTION_EXPANDED, false),
+        staticAodText.visibility == View.VISIBLE,
+    )
+    colorsSection.visibility = if (shown) View.VISIBLE else View.GONE
+}
+
+fun FloatingMenuLayoutBinding.bindColors(manager: AppColorsManager, prefs: SharedPreferences) {
+    colorsToggle.setOnClickListener {
+        val expanded = !prefs.getBoolean(COLORS_SECTION_EXPANDED, false)
+        prefs.edit().putBoolean(COLORS_SECTION_EXPANDED, expanded).apply()
+        showColorsSection(prefs)
+    }
     recolorToggle.setOnClickListener { recolorToggle.showOnOff(manager.toggleRecolor()) }
     colorsReset.setOnClickListener {
         manager.resetApp()
@@ -26,6 +47,7 @@ fun FloatingMenuLayoutBinding.bindColors(manager: AppColorsManager) {
         }
     }
     showColors(manager)
+    showColorsSection(prefs)
 }
 
 fun FloatingMenuLayoutBinding?.showColors(manager: AppColorsManager) = this?.run {
