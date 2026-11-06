@@ -29,6 +29,32 @@
         <item>5</item>
         <item>system</item>
     </string-array>
+    <string-array name="scroll_speed_settle_options">
+        <item>0.15 s</item>
+        <item>0.2 s</item>
+        <item>0.3 s</item>
+        <item>0.5 s</item>
+        <item>0.8 s</item>
+    </string-array>
+    <string-array name="scroll_speed_settle_values">
+        <item>150</item>
+        <item>200</item>
+        <item>300</item>
+        <item>500</item>
+        <item>800</item>
+    </string-array>
+    <string-array name="scroll_speed_max_after_lift_options">
+        <item>0.5 s</item>
+        <item>0.8 s</item>
+        <item>1.2 s</item>
+        <item>4 s</item>
+    </string-array>
+    <string-array name="scroll_speed_max_after_lift_values">
+        <item>500</item>
+        <item>800</item>
+        <item>1200</item>
+        <item>4000</item>
+    </string-array>
     <string-array name="static_lockscreen_options">
         <item>Large Moon</item>
         <item>Small Moon</item>

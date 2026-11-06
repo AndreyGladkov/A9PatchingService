@@ -131,6 +131,30 @@
             app:entries="@array/refresh_options"
             app:entryValues="@array/refresh_values"
             app:defaultValue="2" />
+
+        <SwitchPreferenceCompat
+            app:key="scroll_speed_boost"
+            app:title="Speed While Scrolling"
+            app:summary="Use Speed while a finger scrolls, then return to the app's mode once the scroll settles."
+            app:defaultValue="false" />
+
+        <ListPreference
+            app:dependency="scroll_speed_boost"
+            app:key="scroll_speed_settle"
+            app:title="Leave Speed When Still For"
+            app:summary="%s without panel updates after the finger lifts; the app's mode then cleans the scrolled area."
+            app:entries="@array/scroll_speed_settle_options"
+            app:entryValues="@array/scroll_speed_settle_values"
+            app:defaultValue="150" />
+
+        <ListPreference
+            app:dependency="scroll_speed_boost"
+            app:key="scroll_speed_max_after_lift"
+            app:title="Keep Speed After Lifting At Most"
+            app:summary="%s; the rest of a long fling is drawn in the app's mode."
+            app:entries="@array/scroll_speed_max_after_lift_options"
+            app:entryValues="@array/scroll_speed_max_after_lift_values"
+            app:defaultValue="800" />
     </PreferenceCategory>
 
     <PreferenceCategory app:title="Color Scheme">
