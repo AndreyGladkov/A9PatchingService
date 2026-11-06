@@ -425,9 +425,11 @@ class A9AccessibilityService : AccessibilityService(),
     }
 
     private fun updateColorScheme(sharedPreferences: SharedPreferences) = sharedPreferences.run {
-        val type = getString("color_scheme_type", "5")
-        val colorString = getInt("color_scheme_color", 20).progressToHex()
-        commandRunner.runCommands(arrayOf("theme $type $colorString"))
+        val command = ColorSchemeCommand.of(
+            getString("color_scheme_type", ColorSchemeCommand.SYSTEM_THEME),
+            getInt("color_scheme_color", 20).progressToHex()
+        ) ?: return@run
+        commandRunner.runCommands(arrayOf(command))
     }
 
     private fun updateMaxBrightness(sharedPreferences: SharedPreferences) = sharedPreferences.run {

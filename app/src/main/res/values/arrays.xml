@@ -17,7 +17,8 @@
         <item>RAINBOW</item>
         <item>EXPRESSIVE</item>
         <item>FRUIT_SALAD</item>
-        <item>SPRITZ (RECOMMENDED)</item>
+        <item>SPRITZ</item>
+        <item>System theme (do not override)</item>
     </string-array>
     <string-array name="color_type_values">
         <item>0</item>
@@ -26,6 +27,7 @@
         <item>3</item>
         <item>4</item>
         <item>5</item>
+        <item>system</item>
     </string-array>
     <string-array name="static_lockscreen_options">
         <item>Large Moon</item>
