@@ -1,9 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:padding="14dp"
+    android:paddingHorizontal="@dimen/menu_padding_horizontal"
+    android:paddingTop="@dimen/menu_padding_top"
+    android:paddingBottom="@dimen/menu_padding_bottom"
     android:background="@drawable/inset_border_drawable"
     android:orientation="vertical">
 
@@ -11,70 +12,61 @@
         android:id="@+id/linear_layout_top"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:layout_gravity="center">
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
 
         <TextView
-            android:layout_marginStart="25dp"
-            android:layout_weight="1"
             android:id="@+id/refresh_text"
+            style="@style/MenuTitleStyle"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:textAlignment="center"
-            android:textSize="15sp"
-            android:textColor="@color/black"
+            android:layout_weight="1"
             android:text="@string/refresh_mode" />
 
         <ImageView
             android:id="@+id/settings_icon"
-            android:layout_width="25dp"
-            android:layout_height="25dp"
-            android:padding="2dp"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:padding="4dp"
             android:src="@drawable/baseline_settings_24" />
     </LinearLayout>
 
     <LinearLayout
         android:id="@+id/linear_layout"
+        style="@style/MenuSegmentedBlockStyle"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="5dp"
-        android:orientation="horizontal"
-        android:layout_gravity="center"
-        android:padding="5dp">
+        android:layout_height="wrap_content">
 
         <Button
             android:id="@+id/button1"
-            style="@style/MenuButtonStyle"
-            android:layout_weight="1"
+            style="@style/SegmentButtonStyle.Fitted"
             android:layout_width="0dp"
-            android:layout_height="35dp"
-            android:layout_marginEnd="5dp"
+            android:layout_height="@dimen/menu_control_height"
+            android:layout_weight="1"
             android:text="@string/clear" />
 
         <Button
             android:id="@+id/button2"
-            style="@style/MenuButtonStyle"
-            android:layout_weight="1"
+            style="@style/SegmentButtonStyle.Fitted"
             android:layout_width="0dp"
-            android:layout_height="35dp"
-            android:layout_marginEnd="5dp"
+            android:layout_height="@dimen/menu_control_height"
+            android:layout_weight="1"
             android:text="@string/balanced" />
 
         <Button
             android:id="@+id/button3"
-            style="@style/MenuButtonStyle"
-            android:layout_weight="1"
+            style="@style/SegmentButtonStyle.Fitted"
             android:layout_width="0dp"
-            android:layout_height="35dp"
-            android:layout_marginEnd="5dp"
+            android:layout_height="@dimen/menu_control_height"
+            android:layout_weight="1"
             android:text="@string/smooth" />
 
         <Button
             android:id="@+id/button4"
-            style="@style/MenuButtonStyle"
-            android:layout_weight="1"
+            style="@style/SegmentButtonStyle.Fitted"
             android:layout_width="0dp"
-            android:layout_height="35dp"
+            android:layout_height="@dimen/menu_control_height"
+            android:layout_weight="1"
             android:text="@string/speed" />
     </LinearLayout>
 
@@ -82,84 +74,85 @@
         android:id="@+id/static_aod_text"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:layout_gravity="center">
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
 
         <TextView
-            android:layout_marginStart="70dp"
+            style="@style/MenuTitleStyle"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginTop="5dp"
             android:layout_weight="1"
-            android:textAlignment="center"
-            android:textSize="15sp"
-            android:textColor="@color/black"
             android:text="@string/static_aod_opacity" />
 
         <TextView
             android:id="@+id/enable_reader_mode_text"
-            android:layout_width="70dp"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="5dp"
-            android:textAlignment="center"
-            android:textSize="15sp"
+            android:layout_width="wrap_content"
+            android:layout_height="32dp"
+            android:gravity="center"
+            android:paddingHorizontal="8dp"
             android:textColor="@color/black"
-            android:text="OFF"
-            app:drawableEndCompat="@drawable/baseline_book_closed_24" />
+            android:textSize="14sp"
+            android:text="@string/reader_off" />
+
+        <ImageView
+            android:id="@+id/colors_toggle"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:layout_marginStart="8dp"
+            android:padding="4dp"
+            android:contentDescription="@string/colors"
+            android:src="@drawable/baseline_tune_24" />
     </LinearLayout>
+
     <LinearLayout
         android:id="@+id/static_aod_linear_layout"
+        style="@style/MenuSegmentedBlockStyle"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="5dp"
-        android:orientation="horizontal"
-        android:layout_gravity="center"
-        android:padding="5dp">
+        android:layout_height="wrap_content">
+
         <Button
             android:id="@+id/button_opaque"
-            style="@style/MenuButtonStyle"
-            android:layout_weight="1"
+            style="@style/SegmentButtonStyle.Fitted"
             android:layout_width="0dp"
-            android:layout_height="35dp"
-            android:layout_marginEnd="5dp"
-            android:text="@string/opaque"/>
+            android:layout_height="@dimen/menu_control_height"
+            android:layout_weight="1"
+            android:text="@string/opaque" />
 
         <Button
             android:id="@+id/button_semi_opaque"
-            style="@style/MenuButtonStyle"
-            android:layout_weight="1"
+            style="@style/SegmentButtonStyle.Fitted"
             android:layout_width="0dp"
-            android:layout_height="35dp"
-            android:layout_marginEnd="5dp"
-            android:text="@string/semiopaque"/>
+            android:layout_height="@dimen/menu_control_height"
+            android:layout_weight="1"
+            android:text="@string/semiopaque" />
+
         <Button
             android:id="@+id/button_semi_transparent"
-            style="@style/MenuButtonStyle"
-            android:layout_weight="1"
+            style="@style/SegmentButtonStyle.Fitted"
             android:layout_width="0dp"
-            android:layout_height="35dp"
-            android:layout_marginEnd="5dp"
-            android:text="@string/semiclear"/>
+            android:layout_height="@dimen/menu_control_height"
+            android:layout_weight="1"
+            android:text="@string/semiclear" />
 
         <Button
             android:id="@+id/button_transparent"
-            style="@style/MenuButtonStyle"
-            android:layout_weight="1"
+            style="@style/SegmentButtonStyle.Fitted"
             android:layout_width="0dp"
-            android:layout_height="35dp"
-            android:text="@string/clear"/>
+            android:layout_height="@dimen/menu_control_height"
+            android:layout_weight="1"
+            android:text="@string/clear" />
     </LinearLayout>
 
     <LinearLayout
         android:id="@+id/light_seekbar_container"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:layout_gravity="center"
-        android:padding="5dp">
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
         <ImageView
-            android:layout_width="wrap_content"
-            android:layout_height="match_parent"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
             android:src="@drawable/baseline_brightness_high_24_dark" />
 
         <SeekBar
@@ -167,74 +160,85 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:paddingVertical="10dp"
-            android:thumbTint="@color/black"/>
+            android:paddingVertical="8dp"
+            android:progressDrawable="@drawable/menu_seekbar_track"
+            android:thumbTint="@color/black" />
+
         <ImageView
-            android:layout_width="wrap_content"
-            android:layout_height="match_parent"
-            android:src="@drawable/baseline_moon_24"
-            android:layout_marginHorizontal="5dp"/>
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:layout_marginEnd="8dp"
+            android:src="@drawable/baseline_moon_24" />
+
         <Button
             android:id="@+id/button_night"
-            style="@style/MenuButtonStyle"
-            android:layout_weight="0.3"
-            android:layout_width="0dp"
-            android:layout_height="match_parent"
-            android:text="Manual"/>
+            style="@style/SegmentButtonStyle"
+            android:layout_width="wrap_content"
+            android:layout_height="@dimen/menu_control_height"
+            android:background="@drawable/segmented_frame"
+            android:paddingHorizontal="16dp"
+            android:text="Manual" />
     </LinearLayout>
 
     <LinearLayout
-        android:id="@+id/colors_header"
+        android:id="@+id/colors_section"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:layout_gravity="center">
+        android:layout_marginTop="@dimen/menu_group_gap"
+        android:orientation="vertical"
+        android:visibility="gone">
 
-        <TextView
-            android:id="@+id/colors_reset"
-            android:layout_width="70dp"
+        <LinearLayout
+            android:id="@+id/colors_header"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="5dp"
-            android:textAlignment="center"
-            android:textSize="15sp"
-            android:textColor="@color/black"
-            android:text="@string/reset" />
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
 
-        <TextView
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="5dp"
-            android:layout_weight="1"
-            android:textAlignment="center"
-            android:textSize="15sp"
-            android:textColor="@color/black"
-            android:text="@string/colors" />
+            <TextView
+                style="@style/MenuTitleStyle"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/colors" />
 
-        <TextView
-            android:id="@+id/recolor_toggle"
-            android:layout_width="70dp"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="5dp"
-            android:textAlignment="center"
-            android:textSize="15sp"
-            android:textColor="@color/black"
-            android:text="ON" />
+            <TextView
+                android:id="@+id/colors_reset"
+                android:layout_width="wrap_content"
+                android:layout_height="32dp"
+                android:gravity="center"
+                android:paddingHorizontal="8dp"
+                android:textColor="@color/black"
+                android:textSize="14sp"
+                android:text="@string/reset" />
+
+            <TextView
+                android:id="@+id/recolor_toggle"
+                android:layout_width="wrap_content"
+                android:layout_height="32dp"
+                android:layout_marginStart="8dp"
+                android:gravity="center"
+                android:paddingHorizontal="8dp"
+                android:textColor="@color/black"
+                android:textSize="14sp"
+                android:text="ON" />
+        </LinearLayout>
+
+        <include
+            android:id="@+id/line_threshold"
+            layout="@layout/color_slider_row" />
+
+        <include
+            android:id="@+id/panel_contrast"
+            layout="@layout/color_slider_row" />
+
+        <include
+            android:id="@+id/panel_black"
+            layout="@layout/color_slider_row" />
+
+        <include
+            android:id="@+id/panel_white"
+            layout="@layout/color_slider_row" />
     </LinearLayout>
-
-    <include
-        android:id="@+id/line_threshold"
-        layout="@layout/color_slider_row" />
-
-    <include
-        android:id="@+id/panel_contrast"
-        layout="@layout/color_slider_row" />
-
-    <include
-        android:id="@+id/panel_black"
-        layout="@layout/color_slider_row" />
-
-    <include
-        android:id="@+id/panel_white"
-        layout="@layout/color_slider_row" />
 
 </LinearLayout>
