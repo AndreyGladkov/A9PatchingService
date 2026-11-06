@@ -12,6 +12,9 @@
 #include <sys/xattr.h>
 #include <sys/wait.h>
 #include <signal.h>
+#include <pthread.h>
+#include "panel_activity.h"
+#include "touch_monitor.h"
 
 static const char* kTAG = "a9EinkService";
 #define LOGI(...) ((void)__android_log_print(ANDROID_LOG_INFO, kTAG, __VA_ARGS__))
@@ -19,6 +22,7 @@ static const char* kTAG = "a9EinkService";
 
 #define SOCKET_NAME "0a9_eink_socket"
 #define BUFFER_SIZE 512
+#define SPEED_DISPLAY_MODE "521"
 
 static const char* theme_styles[] = {
         "TONAL_SPOT",
@@ -235,19 +239,116 @@ void writeWakeOnVolumeProp(const char* value) {
     }
 }
 
+static pthread_mutex_t display_mode_lock = PTHREAD_MUTEX_INITIALIZER;
+static char app_display_mode[8];
+static int scroll_speed_enabled = 0;
+static int scroll_speed_active = 0;
+
+void setAppDisplayMode(const char* value) {
+    pthread_mutex_lock(&display_mode_lock);
+    snprintf(app_display_mode, sizeof(app_display_mode), "%s", value);
+    if (!scroll_speed_active)
+        writeToEpdDisplayMode(value);
+    pthread_mutex_unlock(&display_mode_lock);
+}
+
+/*
+ * The vendor composer redraws the changed pixels with a 37-70 frame bridge waveform (a visible
+ * flash) whenever the mode number changes. Our patched composer skips that bridge for values
+ * carrying this bit; the stock one never reads it. 0x100 and 0x400 are taken: the composer sets
+ * 0x100 itself and 0x400 selects 1-bit ordered dithering in Balanced and Smooth.
+ */
+#define DISPLAY_MODE_NO_TRANSITION 0x800
+
+static void writeDisplayModeWithoutTransition(const char* value) {
+    char flagged[8];
+    snprintf(flagged, sizeof(flagged), "%d", atoi(value) | DISPLAY_MODE_NO_TRANSITION);
+    writeToEpdDisplayMode(flagged);
+}
+
+/* Returns 1 when the app's mode was written back and the composer now owes a bridge frame. */
+static int restoreAppDisplayModeLocked(void) {
+    if (!scroll_speed_active)
+        return 0;
+    scroll_speed_active = 0;
+    if (strcmp(app_display_mode, SPEED_DISPLAY_MODE) == 0)
+        return 0;
+    /* With the bridge the composer redraws only the pixels Speed left behind: the scroll area. */
+    writeToEpdDisplayMode(app_display_mode);
+    return 1;
+}
+
+/*
+ * The composer applies the bridge to the next frame only. After a scroll has settled no frame
+ * comes, so SurfaceFlinger repaints the unchanged screen (transaction 1004) to deliver one.
+ */
+static void requestRepaint(void) {
+    pid_t pid = fork();
+    if (pid == 0) {
+        execl("/system/bin/service", "service", "call", "SurfaceFlinger", "1004", (char *)NULL);
+        LOGE("execl failed: %s", strerror(errno));
+        exit(EXIT_FAILURE);
+    } else if (pid < 0) {
+        LOGE("fork failed: %s", strerror(errno));
+    } else {
+        waitpid(pid, NULL, 0);
+    }
+}
+
+static void restoreAppDisplayMode(void) {
+    pthread_mutex_lock(&display_mode_lock);
+    int restored = restoreAppDisplayModeLocked();
+    pthread_mutex_unlock(&display_mode_lock);
+    if (restored)
+        requestRepaint();
+}
+
+static void onScrollStarted(void) {
+    pthread_mutex_lock(&display_mode_lock);
+    /* Until A9 Service has sent the app's mode there is nothing to return to after the scroll. */
+    if (scroll_speed_enabled && !scroll_speed_active && app_display_mode[0]) {
+        scroll_speed_active = 1;
+        if (strcmp(app_display_mode, SPEED_DISPLAY_MODE) != 0)
+            writeDisplayModeWithoutTransition(SPEED_DISPLAY_MODE);
+    }
+    pthread_mutex_unlock(&display_mode_lock);
+}
+
+static void onScrollEnded(void) {
+    restoreAppDisplayMode();
+}
+
+void setScrollSpeedEnabled(int enabled) {
+    pthread_mutex_lock(&display_mode_lock);
+    scroll_speed_enabled = enabled;
+    pthread_mutex_unlock(&display_mode_lock);
+    if (!enabled)
+        restoreAppDisplayMode();
+}
+
 void processCommand(const char* command) {
     if (strcmp(command, "cm") == 0) {
         epdCommitBitmap();
     } else if (strcmp(command, "r") == 0) {
         epdForceClear();
     } else if (strcmp(command, "c") == 0) {
-        writeToEpdDisplayMode("515");
+        setAppDisplayMode("515");
     } else if (strcmp(command, "b") == 0) {
-        writeToEpdDisplayMode("513");
+        setAppDisplayMode("513");
     } else if (strcmp(command, "s") == 0) {
-        writeToEpdDisplayMode("518");
+        setAppDisplayMode("518");
     } else if (strcmp(command, "p") == 0) {
-        writeToEpdDisplayMode("521");
+        setAppDisplayMode(SPEED_DISPLAY_MODE);
+    } else if (strcmp(command, "tsc1") == 0) {
+        setScrollSpeedEnabled(1);
+    } else if (strcmp(command, "tsc0") == 0) {
+        setScrollSpeedEnabled(0);
+    } else if (strncmp(command, "tsd", 3) == 0) {
+        if (valid_number(command + 3))
+            touch_monitor_set_settle_ms(atoi(command + 3));
+    } else if (strncmp(command, "tsm", 3) == 0) {
+        if (valid_number(command + 3))
+            touch_monitor_set_max_speed_after_lift_ms(atoi(command + 3));
     } else if (strncmp(command, "stw", 3) == 0) {
         if(valid_number(command+3))
             setWhiteThreshold(command+3);
@@ -344,6 +445,9 @@ _Noreturn void setupServer() {
 
 int main(void) {
     signal(SIGHUP, SIG_IGN);
+    touch_monitor_callbacks callbacks = { onScrollStarted, onScrollEnded, panel_activity_last_update_ms };
+    panel_activity_start();
+    touch_monitor_start(callbacks);
     setupServer();
     return 0;
 }

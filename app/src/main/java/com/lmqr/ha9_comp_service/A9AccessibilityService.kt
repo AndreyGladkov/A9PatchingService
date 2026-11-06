@@ -153,6 +153,7 @@ class A9AccessibilityService : AccessibilityService(),
         staticAODOpacityManager.applyMode()
         staticAODOpacityManager.applyReader()
         updateMaxBrightness(sharedPreferences)
+        updateScrollSpeed(sharedPreferences)
     }
 
     override fun onInterrupt() {
@@ -432,6 +433,18 @@ class A9AccessibilityService : AccessibilityService(),
         commandRunner.runCommands(arrayOf(command))
     }
 
+    private fun updateScrollSpeed(sharedPreferences: SharedPreferences) = sharedPreferences.run {
+        val settle = getString("scroll_speed_settle", "150")?.toIntOrNull() ?: 150
+        val maxAfterLift = getString("scroll_speed_max_after_lift", "800")?.toIntOrNull() ?: 800
+        commandRunner.runCommands(
+            arrayOf(
+                Commands.SCROLL_SPEED_SETTLE(settle),
+                Commands.SCROLL_SPEED_MAX_AFTER_LIFT(maxAfterLift),
+                Commands.SCROLL_SPEED(getBoolean("scroll_speed_boost", false)),
+            )
+        )
+    }
+
     private fun updateMaxBrightness(sharedPreferences: SharedPreferences) = sharedPreferences.run {
         try{
             val brightness = Integer.parseInt(getString("override_max_brightness", "2000")?:"2000")
@@ -443,6 +456,10 @@ class A9AccessibilityService : AccessibilityService(),
 
     override fun onSharedPreferenceChanged(sharedPreferences: SharedPreferences?, key: String?) {
         when (key) {
+            "scroll_speed_boost", "scroll_speed_settle", "scroll_speed_max_after_lift" -> {
+                sharedPreferences?.let { updateScrollSpeed(it) }
+            }
+
             "override_max_brightness" -> {
                 sharedPreferences?.let { updateMaxBrightness(it) }
             }
