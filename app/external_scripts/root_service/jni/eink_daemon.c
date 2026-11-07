@@ -43,6 +43,15 @@ int valid_number(const char *s) {
     return 1;
 }
 
+static int valid_display_mode(const char *s) {
+    size_t len = strlen(s);
+    if (len == 0 || len > 7)
+        return 0;
+    while (*s)
+        if (isdigit(*s++) == 0) return 0;
+    return 1;
+}
+
 int valid_hex_color(const char *s) {
     if (strlen(s) != 6)
         return 0;
@@ -121,7 +130,7 @@ void epdCommitBitmap() {
 
 void writeToEpdDisplayMode(const char* value) {
     const char* filePath = "/sys/devices/platform/soc/soc:qcom,dsi-display-primary/epd_display_mode";
-    if(!valid_number(value)){
+    if(!valid_display_mode(value)){
         LOGE("Error writing to %s: Invalid Number\n", filePath);
         return;
     }
@@ -243,6 +252,7 @@ static pthread_mutex_t display_mode_lock = PTHREAD_MUTEX_INITIALIZER;
 static char app_display_mode[8];
 static int scroll_speed_enabled = 0;
 static int scroll_speed_active = 0;
+static int regional_clean_bits = 0;
 
 void setAppDisplayMode(const char* value) {
     pthread_mutex_lock(&display_mode_lock);
@@ -259,10 +269,16 @@ void setAppDisplayMode(const char* value) {
  * 0x100 itself and 0x400 selects 1-bit ordered dithering in Balanced and Smooth.
  */
 #define DISPLAY_MODE_NO_TRANSITION 0x800
+/*
+ * Read only by the lookUpTable hook in the composer's libReadingModeEngine.so replacement: blocks
+ * drawn by Speed carrying 0x1000 are cleaned with GC16 (GL16 with 0x2000) after the scroll.
+ */
+#define DISPLAY_MODE_REGIONAL_CLEAN 0x1000
+#define DISPLAY_MODE_REGIONAL_CLEAN_GL16 0x2000
 
-static void writeDisplayModeWithoutTransition(const char* value) {
+static void writeDisplayModeWithoutTransition(const char* value, int extra_bits) {
     char flagged[8];
-    snprintf(flagged, sizeof(flagged), "%d", atoi(value) | DISPLAY_MODE_NO_TRANSITION);
+    snprintf(flagged, sizeof(flagged), "%d", atoi(value) | DISPLAY_MODE_NO_TRANSITION | extra_bits);
     writeToEpdDisplayMode(flagged);
 }
 
@@ -273,6 +289,14 @@ static int restoreAppDisplayModeLocked(void) {
     scroll_speed_active = 0;
     if (strcmp(app_display_mode, SPEED_DISPLAY_MODE) == 0)
         return 0;
+    if (regional_clean_bits) {
+        /*
+         * No bridge: the repaint redraws the blocks Speed touched in the app's mode, and once
+         * frames stop coming the hook cleans only those blocks with GC16/GL16.
+         */
+        writeDisplayModeWithoutTransition(app_display_mode, 0);
+        return 1;
+    }
     /* With the bridge the composer redraws only the pixels Speed left behind: the scroll area. */
     writeToEpdDisplayMode(app_display_mode);
     return 1;
@@ -309,7 +333,7 @@ static void onScrollStarted(void) {
     if (scroll_speed_enabled && !scroll_speed_active && app_display_mode[0]) {
         scroll_speed_active = 1;
         if (strcmp(app_display_mode, SPEED_DISPLAY_MODE) != 0)
-            writeDisplayModeWithoutTransition(SPEED_DISPLAY_MODE);
+            writeDisplayModeWithoutTransition(SPEED_DISPLAY_MODE, regional_clean_bits);
     }
     pthread_mutex_unlock(&display_mode_lock);
 }
@@ -324,6 +348,17 @@ void setScrollSpeedEnabled(int enabled) {
     pthread_mutex_unlock(&display_mode_lock);
     if (!enabled)
         restoreAppDisplayMode();
+}
+
+static void setRegionalClean(int variant) {
+    static const int bits[] = {
+        0,
+        DISPLAY_MODE_REGIONAL_CLEAN,
+        DISPLAY_MODE_REGIONAL_CLEAN | DISPLAY_MODE_REGIONAL_CLEAN_GL16,
+    };
+    pthread_mutex_lock(&display_mode_lock);
+    regional_clean_bits = bits[variant];
+    pthread_mutex_unlock(&display_mode_lock);
 }
 
 void processCommand(const char* command) {
@@ -343,6 +378,9 @@ void processCommand(const char* command) {
         setScrollSpeedEnabled(1);
     } else if (strcmp(command, "tsc0") == 0) {
         setScrollSpeedEnabled(0);
+    } else if (strcmp(command, "trc0") == 0 || strcmp(command, "trc1") == 0 ||
+               strcmp(command, "trc2") == 0) {
+        setRegionalClean(command[3] - '0');
     } else if (strncmp(command, "tsd", 3) == 0) {
         if (valid_number(command + 3))
             touch_monitor_set_settle_ms(atoi(command + 3));
