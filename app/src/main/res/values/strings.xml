@@ -19,4 +19,6 @@
     <string name="panel_white">White</string>
     <string name="reader_on">Reader ON</string>
     <string name="reader_off">Reader OFF</string>
+    <string name="scroll_speed_on">Scroll ON</string>
+    <string name="scroll_speed_off">Scroll OFF</string>
 </resources>
