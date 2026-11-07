@@ -1,0 +1,3 @@
+# Module files are bind mounted from /data, which is nosuid; without this init cannot start the
+# composer in its domain and the display stays off.
+allow init hal_graphics_composer_default process2 nosuid_transition

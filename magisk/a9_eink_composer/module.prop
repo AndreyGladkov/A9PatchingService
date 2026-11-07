@@ -1,0 +1,6 @@
+id=a9_eink_display
+name=A9 E-Ink composer without mode flashes
+version=v5
+versionCode=5
+author=Andrei Gladkov
+description=Patches this phone's vendor composer so that Speed while scrolling in A9 Service switches modes without the transition flash. Hisense A9 (HLTE556N) only.
