@@ -11,15 +11,8 @@ import com.lmqr.ha9_comp_service.databinding.FloatingMenuLayoutBinding
 
 private const val COLORS_SECTION_EXPANDED = "menu_colors_expanded"
 
-/** The section's toggle sits in the static AOD row, so with that row hidden it stays open. */
-fun isColorsSectionShown(expanded: Boolean, staticAodRowShown: Boolean) =
-    expanded || !staticAodRowShown
-
 fun FloatingMenuLayoutBinding.showColorsSection(prefs: SharedPreferences) {
-    val shown = isColorsSectionShown(
-        prefs.getBoolean(COLORS_SECTION_EXPANDED, false),
-        staticAodText.visibility == View.VISIBLE,
-    )
+    val shown = prefs.getBoolean(COLORS_SECTION_EXPANDED, false)
     colorsSection.visibility = if (shown) View.VISIBLE else View.GONE
 }
 

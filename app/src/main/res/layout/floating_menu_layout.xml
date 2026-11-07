@@ -34,6 +34,15 @@
             android:text="@string/scroll_speed_off" />
 
         <ImageView
+            android:id="@+id/colors_toggle"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:layout_marginStart="8dp"
+            android:padding="4dp"
+            android:contentDescription="@string/colors"
+            android:src="@drawable/baseline_tune_24" />
+
+        <ImageView
             android:id="@+id/settings_icon"
             android:layout_width="32dp"
             android:layout_height="32dp"
@@ -104,15 +113,6 @@
             android:textColor="@color/black"
             android:textSize="14sp"
             android:text="@string/reader_off" />
-
-        <ImageView
-            android:id="@+id/colors_toggle"
-            android:layout_width="32dp"
-            android:layout_height="32dp"
-            android:layout_marginStart="8dp"
-            android:padding="4dp"
-            android:contentDescription="@string/colors"
-            android:src="@drawable/baseline_tune_24" />
     </LinearLayout>
 
     <LinearLayout
