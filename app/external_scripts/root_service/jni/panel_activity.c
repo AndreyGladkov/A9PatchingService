@@ -3,6 +3,7 @@
 #include <android/log.h>
 #include <dirent.h>
 #include <errno.h>
+#include <poll.h>
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -22,6 +23,7 @@
 /* The composer logs this line for every update it sends to the panel. */
 #define PANEL_UPDATE_PREFIX "epd:: clear="
 #define RECONNECT_DELAY_S 2
+#define COMPOSER_CHECK_MS 2000
 
 /* logd wire format (system/logging/liblog/include/log/log_read.h), stable since Android 7. */
 struct logger_entry {
@@ -105,6 +107,31 @@ static int is_panel_update(const char *buf, ssize_t n) {
     return (size_t) (end - message) > prefix_len && strncmp(message, PANEL_UPDATE_PREFIX, prefix_len) == 0;
 }
 
+/*
+ * logd keeps a pid-filtered stream open after that process exits and just stops sending, so a
+ * restarted composer (new pid) would look like a panel that never updates.
+ */
+static void follow(int fd, int pid, char *buf, size_t size) {
+    for (;;) {
+        struct pollfd pfd = { .fd = fd, .events = POLLIN };
+        int ready = poll(&pfd, 1, COMPOSER_CHECK_MS);
+        if (ready < 0 && errno == EINTR)
+            continue;
+        if (ready < 0)
+            return;
+        if (ready == 0) {
+            if (find_composer_pid() != pid)
+                return;
+            continue;
+        }
+        ssize_t n = read(fd, buf, size);
+        if (n <= 0)
+            return;
+        if (is_panel_update(buf, n))
+            __atomic_store_n(&last_update_ms, now_ms(), __ATOMIC_RELAXED);
+    }
+}
+
 static void *run(void *unused) {
     (void) unused;
     char buf[5 * 1024];
@@ -116,10 +143,7 @@ static void *run(void *unused) {
             continue;
         }
         LOGI("Panel activity: following composer pid %d", pid);
-        ssize_t n;
-        while ((n = read(fd, buf, sizeof(buf))) > 0)
-            if (is_panel_update(buf, n))
-                __atomic_store_n(&last_update_ms, now_ms(), __ATOMIC_RELAXED);
+        follow(fd, pid, buf, sizeof(buf));
         close(fd);
         sleep(RECONNECT_DELAY_S);
     }
