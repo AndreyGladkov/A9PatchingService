@@ -19,6 +19,8 @@ Flashing the resulting file is done the same as any other system.img
 
 ## Android 16 GSIs
 
+A ready e-ink LineageOS 23.2 image built from source, with a Magisk module for flash-free scrolling: [docs/eink-gsi.ru.md](docs/eink-gsi.ru.md) (Russian).
+
 Tested with LineageOS 23.2 (Android 16 QPR2) by MisterZtr on the stock Android 11 vendor.
 
 Building the image:
