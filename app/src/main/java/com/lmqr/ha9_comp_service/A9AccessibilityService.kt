@@ -262,6 +262,7 @@ class A9AccessibilityService : AccessibilityService(),
                     enableReaderModeText.setIsReader(staticAODOpacityManager.isReader)
                     staticAodText.visibility = staticAodVisibility
                     staticAodLinearLayout.visibility = staticAodVisibility
+                    showScrollSpeed(sharedPreferences)
                     showColorsSection(sharedPreferences)
                     updateButtons(staticAODOpacityManager.currentOpacity, staticAODOpacityManager.isReader)
                     showColors(appColorsManager)
@@ -394,6 +395,7 @@ class A9AccessibilityService : AccessibilityService(),
                     updateButtons(refreshModeManager.currentMode)
                     updateButtons(staticAODOpacityManager.currentOpacity, staticAODOpacityManager.isReader)
                     bindColors(appColorsManager, sharedPreferences)
+                    bindScrollSpeed(sharedPreferences)
 
                     wm.addView(root, layoutParams)
                 }
@@ -447,7 +449,7 @@ class A9AccessibilityService : AccessibilityService(),
             arrayOf(
                 Commands.SCROLL_SPEED_SETTLE(settle),
                 Commands.SCROLL_SPEED_MAX_AFTER_LIFT(maxAfterLift),
-                Commands.SCROLL_SPEED(getBoolean("scroll_speed_boost", false)),
+                Commands.SCROLL_SPEED(getBoolean(SCROLL_SPEED_BOOST, false)),
             )
         )
     }
@@ -463,7 +465,7 @@ class A9AccessibilityService : AccessibilityService(),
 
     override fun onSharedPreferenceChanged(sharedPreferences: SharedPreferences?, key: String?) {
         when (key) {
-            "scroll_speed_boost", "scroll_speed_settle", "scroll_speed_max_after_lift" -> {
+            SCROLL_SPEED_BOOST, "scroll_speed_settle", "scroll_speed_max_after_lift" -> {
                 sharedPreferences?.let { updateScrollSpeed(it) }
             }
 
