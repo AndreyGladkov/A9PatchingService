@@ -33,7 +33,8 @@
 
 ## Требования
 
-- Hisense A9 (HLTE556N) со стоковым вендором Android 11 и разблокированным загрузчиком.
+- Hisense A9 (HLTE556N) с разблокированным загрузчиком.
+- Раздел `vendor` таким, каким его поставил Hisense: Android 11, сборка L2037. Возвращаться на стоковую прошивку не нужно: GSI заменяет только `system`, поэтому если на телефоне сейчас другой GSI (например, LineageOS 21 от damianmqr), вендор на нём по-прежнему стоковый. Проверить: `adb shell getprop ro.vendor.build.fingerprint` должен содержать `HLTE556N:11` и `L2037`.
 - Отключённая проверка vbmeta: образ не подписан AVB. Если вы уже ставили на A9 любой GSI, это сделано; если нет — один раз из fastboot: `fastboot flash vbmeta --disable-verity --disable-verification vbmeta.img` (`vbmeta.img` из стоковой прошивки).
 - `adb` и `fastboot` (Android SDK Platform-Tools) на компьютере.
 
