@@ -248,11 +248,7 @@ class A9AccessibilityService : AccessibilityService(),
                 } else {
                     root.visibility = View.VISIBLE
                     lightSeekbar.progress = max(SystemSettingsManager.getBrightnessFromSetting(this@A9AccessibilityService) - 1, 0)
-                    buttonNight.text = when(SystemSettingsManager.getNightLightMode(this@A9AccessibilityService)){
-                        SystemSettingsManager.NightLightMode.Manual -> "Manual"
-                        SystemSettingsManager.NightLightMode.Auto -> "Auto"
-                        else -> "OFF"
-                    }
+                    showNightLight(this@A9AccessibilityService)
                     updateButtons(refreshModeManager.currentMode)
                     val staticAodVisibility =
                         if(!sharedPreferences.getBoolean("disable_show_per_app_aod_settings", false))
@@ -289,6 +285,7 @@ class A9AccessibilityService : AccessibilityService(),
 
                 menuBinding = FloatingMenuLayoutBinding.bind(view).apply {
                     applyMenuShape(this@A9AccessibilityService)
+                    keepControlsAboveSystemGestures(this@A9AccessibilityService)
                     root.setOnTouchListener { _, event ->
                         if (event.action == MotionEvent.ACTION_OUTSIDE)
                             close()
@@ -377,20 +374,7 @@ class A9AccessibilityService : AccessibilityService(),
                         }
                     )
 
-                    buttonNight.text = when(SystemSettingsManager.getNightLightMode(this@A9AccessibilityService)){
-                        SystemSettingsManager.NightLightMode.Manual -> "Manual"
-                        SystemSettingsManager.NightLightMode.Auto -> "Auto"
-                        else -> "OFF"
-                    }
-
-                    buttonNight.setOnClickListener {
-                        val nextMode = SystemSettingsManager.setNextNightLightMode(this@A9AccessibilityService)
-                        buttonNight.text = when(nextMode){
-                            SystemSettingsManager.NightLightMode.Manual -> "Manual"
-                            SystemSettingsManager.NightLightMode.Auto -> "Auto"
-                            else -> "OFF"
-                        }
-                    }
+                    bindNightLight(this@A9AccessibilityService)
 
                     updateButtons(refreshModeManager.currentMode)
                     updateButtons(staticAODOpacityManager.currentOpacity, staticAODOpacityManager.isReader)

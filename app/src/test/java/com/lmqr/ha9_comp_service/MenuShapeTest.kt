@@ -20,6 +20,16 @@ class MenuShapeTest {
     }
 
     @Test
+    fun liftsTheControlsAboveTheGestureZone() {
+        assertEquals(90, menuBottomPadding(basePx = 54, gestureZonePx = 72, gapPx = 18))
+    }
+
+    @Test
+    fun keepsTheLayoutPaddingWithoutAGestureZone() {
+        assertEquals(54, menuBottomPadding(basePx = 54, gestureZonePx = 0, gapPx = 18))
+    }
+
+    @Test
     fun keepsTheMenuRadiusOnSquareScreens() {
         assertEquals(18, concentricRadius(outerRadiusPx = 0, insetPx = 11, minRadiusPx = 18))
     }
