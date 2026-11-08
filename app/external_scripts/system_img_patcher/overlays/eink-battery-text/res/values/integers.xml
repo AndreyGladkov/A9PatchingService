@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Battery as plain text: the icon's body is translucent ink, which e-ink dithers into speckles.
+     Read only when the settings database is created, so it changes fresh installs only. -->
+<resources>
+    <integer name="def_battery_style">2</integer>
+</resources>

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.lmqr.ha9_comp_service.overlay.statusbar_icons">
+    <overlay android:targetPackage="com.android.systemui" android:isStatic="true" android:priority="100" />
+    <application android:hasCode="false" />
+</manifest>

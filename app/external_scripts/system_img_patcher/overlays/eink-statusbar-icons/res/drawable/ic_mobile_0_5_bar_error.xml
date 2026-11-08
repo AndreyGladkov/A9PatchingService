@@ -1,0 +1,49 @@
+<!--
+     Copyright (C) 2025 The Android Open Source Project
+
+     Licensed under the Apache License, Version 2.0 (the "License");
+     you may not use this file except in compliance with the License.
+     You may obtain a copy of the License at
+
+          http://www.apache.org/licenses/LICENSE-2.0
+
+     Unless required by applicable law or agreed to in writing, software
+     distributed under the License is distributed on an "AS IS" BASIS,
+     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     See the License for the specific language governing permissions and
+     limitations under the License.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="21dp"
+    android:height="12dp"
+    android:viewportHeight="12.0"
+    android:viewportWidth="20.5">
+    <!-- clip-out the circle which will contain the exclamation point (below this group) -->
+    <group>
+        <clip-path android:pathData="
+            M0,0
+            H20.5
+            V12.0
+            H0
+            Z
+            M19.499,13.5C22.261,13.5 24.499,11.261 24.499,8.5C24.499,5.739 22.261,3.5 19.499,3.5C16.738,3.5 14.499,5.739 14.499,8.5C14.499,11.261 16.738,13.5 19.499,13.5Z" />
+        <path
+            android:fillColor="#000"
+            android:pathData="M-0.001,10.75a1.25,1.25 0 1,0 2.5,0a1.25,1.25 0 1,0 -2.5,0Z" />
+        <path
+            android:fillColor="#000"
+            android:pathData="M4.499,10.75a1.25,1.25 0 1,0 2.5,0a1.25,1.25 0 1,0 -2.5,0Z" />
+        <path
+            android:fillColor="#000"
+            android:pathData="M8.999,10.75a1.25,1.25 0 1,0 2.5,0a1.25,1.25 0 1,0 -2.5,0Z" />
+        <path
+            android:fillColor="#000"
+            android:pathData="M13.499,10.75a1.25,1.25 0 1,0 2.5,0a1.25,1.25 0 1,0 -2.5,0Z" />
+        <path
+            android:fillColor="#000"
+            android:pathData="M17.999,10.75a1.25,1.25 0 1,0 2.5,0a1.25,1.25 0 1,0 -2.5,0Z" />
+    </group>
+    <path
+        android:fillColor="#000"
+        android:pathData="M19.499,5C19.089,5 18.749,5.34 18.749,5.75L18.749,8.75C18.749,9.16 19.089,9.5 19.499,9.5C19.909,9.5 20.249,9.16 20.249,8.75L20.249,5.75C20.249,5.34 19.909,5 19.499,5ZM19.499,12C19.909,12 20.249,11.66 20.249,11.25C20.249,10.84 19.909,10.5 19.499,10.5C19.089,10.5 18.749,10.84 18.749,11.25C18.749,11.66 19.089,12 19.499,12Z" />
+</vector>

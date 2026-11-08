@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- E-ink dithers translucent ink into grey speckles: the empty part of the signal, Wi-Fi and battery icons
+     goes transparent and everything drawn goes solid. -->
+<resources>
+    <color name="dark_mode_icon_color_single_tone">#ff000000</color>
+    <color name="dark_mode_icon_color_dual_tone_background">#00000000</color>
+    <color name="dark_mode_icon_color_dual_tone_fill">#ff000000</color>
+    <color name="light_mode_icon_color_dual_tone_background">#00ffffff</color>
+    <color name="light_mode_icon_color_dual_tone_fill">#ffffffff</color>
+    <color name="dark_mode_qs_icon_color_single_tone">#ff000000</color>
+    <color name="dark_mode_qs_icon_color_dual_tone_background">#00000000</color>
+    <color name="dark_mode_qs_icon_color_dual_tone_fill">#ff000000</color>
+</resources>

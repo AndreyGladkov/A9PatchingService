@@ -1298,6 +1298,21 @@ def patch_systemui():
     JarPatcher(
         "d/system/system_ext/priv-app/SystemUI/SystemUI.apk",
         [
+            # The stacked dual-SIM icon draws its empty signal bars in code at 30% alpha, which e-ink dithers
+            # into grey speckles; they go transparent. The single-SIM icon uses the SettingsLib drawables
+            # that a9-eink-statusbar-icons.apk replaces.
+            FilePatch(
+                file_patterns = [r"StackedMobileIconKt\.smali"],
+                patches = [
+                    InstructionPatch(
+                        instruction = InstructionDetails(
+                            instruction_type = InstructionType.CONSTANT,
+                            constant_value = Matcher.regex(r"0x3e99999a\b"),
+                        ),
+                        action = lambda instruction: instruction.replace(f'const {instruction.registers[0]}, 0x0'),
+                    ),
+                ],
+            ),
             FilePatch(
                 file_patterns = [r"Doze(Sensors|Triggers).*\.smali"],
                 patches = [
@@ -1558,6 +1573,8 @@ def update_build_prop():
         "sys.disable_ext_animation": "1",
         # Recent apps
         "ro.recents.grid": "true",
+        # The GSI leaves it unset, so a fresh install allows only 2G/3G. 9 is LTE/GSM/WCDMA, one per SIM slot.
+        "ro.telephony.default_network": "9,9",
     }
     logging.info("Updating build.prop...")
     with open("d/system/build.prop", "r") as file:
@@ -1596,6 +1613,71 @@ def install_enable_accessibility_script():
     os.chmod(script_path, 0o755)
     subprocess.run(["chown", "root:2000", script_path])
     subprocess.run(["setfattr", "-n", "security.selinux", "-v", "u:object_r:system_file:s0", script_path])
+
+# Qualcomm IMS (org.codeaurora.ims) taken from the Hisense A9 stock firmware, laid out as system_ext/... and
+# product/... It is proprietary, so it is not in git; without it the GSI cannot send or receive SMS on LTE,
+# because the A9 modem registers with IMS by itself there and Android then sends every SMS over IMS.
+STOCK_IMS_DIR = "../stock_ims"
+
+# The GSI policy does not let the app reach the vendor IImsRadio HAL. These three were enough on the phone;
+# reads of vendor_ims_prop and vendor_radio_prop stay denied without harm.
+STOCK_IMS_SEPOLICY = (
+    "(allow platform_app hal_telephony_hwservice (hwservice_manager (find)))\n"
+    "(allow platform_app hal_telephony_server (binder (call transfer)))\n"
+    "(allow hal_telephony_server platform_app (binder (call transfer)))\n"
+)
+
+# Without an IMS APN the modem never registers. Only Tele2 Russia (250 20) is tested.
+STOCK_IMS_APN = (
+    '    <apn mcc="250" mnc="20" carrier="TELE2 IMS" apn="ims" carrier_id="1028" type="ims" '
+    'protocol="IPV4V6" roaming_protocol="IPV6" modem_cognitive="true" />\n'
+)
+
+# While VoLTE is off Android leaves IMS off, and SMS over IMS needs it on. Enabled 20 s after boot as tested.
+STOCK_IMS_RC = (
+    "on property:sys.boot_completed=1\n"
+    "    exec_background u:r:phhsu_daemon:s0 root -- /system/bin/sh -c "
+    "\"sleep 20; /system/bin/cmd phone ims enable -s 0; /system/bin/cmd phone ims enable -s 1\"\n"
+)
+
+def stock_ims_secontext(path):
+    if os.path.basename(os.path.dirname(path)) in ("lib", "lib64"):
+        return "u:object_r:system_lib_file:s0"
+    return "u:object_r:system_file:s0"
+
+def install_stock_ims():
+    if not os.path.isdir(STOCK_IMS_DIR):
+        logging.warning(f"{STOCK_IMS_DIR} doesn't exist: skipping IMS, SMS won't work on LTE.")
+        return
+    logging.info("Installing stock IMS...")
+    for root, dirs, files in os.walk(STOCK_IMS_DIR):
+        target_root = os.path.join("d/system", os.path.relpath(root, STOCK_IMS_DIR))
+        for name in dirs:
+            target = os.path.join(target_root, name)
+            if not os.path.isdir(target):
+                os.mkdir(target, 0o755)
+                subprocess.run(["chown", "root:root", target])
+                subprocess.run(["setfattr", "-n", "security.selinux", "-v", stock_ims_secontext(os.path.join(target, "x")), target])
+        for name in files:
+            target = os.path.join(target_root, name)
+            replace_file(target, src = os.path.join(root, name), secontext = stock_ims_secontext(target))
+
+    with open("d/system/system_ext/etc/selinux/system_ext_sepolicy.cil", "a") as file:
+        file.write(STOCK_IMS_SEPOLICY)
+
+    apns_path = "d/system/product/etc/apns-conf.xml"
+    with open(apns_path, "r") as file:
+        apns = file.read()
+    if 'apn="ims" carrier_id="1028"' not in apns:
+        with open(apns_path, "w") as file:
+            file.write(apns.replace("</apns>", STOCK_IMS_APN + "</apns>"))
+
+    rc_path = "d/system/etc/init/a9_stock_ims.rc"
+    with open(rc_path, "w") as file:
+        file.write(STOCK_IMS_RC)
+    os.chmod(rc_path, 0o644)
+    subprocess.run(["chown", "root:root", rc_path])
+    subprocess.run(["setfattr", "-n", "security.selinux", "-v", "u:object_r:system_file:s0", rc_path])
 
 def update_vndk_rc():
     logging.info("Updating vndk init script...")
@@ -1680,6 +1762,8 @@ def main():
                 "because platform apps signed with another key make system_server abort on boot."
             )
         replace_file("d/system/product/overlay/treble-overlay-Hisense-HLTE556N.apk")
+        replace_file("d/system/product/overlay/a9-eink-statusbar-icons.apk")
+        replace_file("d/system/product/overlay/a9-eink-battery-text.apk")
         replace_file("d/system/bin/a9_eink_server", perms = 0o755, owner = "root:2000", secontext = "u:object_r:phhsu_exec:s0")
         replace_file("d/system/priv-app/a9service.apk")
         replace_file("d/system/priv-app/org.fdroid.fdroid.privileged.apk")
@@ -1697,6 +1781,7 @@ def main():
             patch_systemui()
         patch_services_jar()
         update_vndk_rc()
+        install_stock_ims()
 
     run_command("e2fsck -f -y s-ab-raw.img || true")
     run_command("resize2fs -M s-ab-raw.img")
