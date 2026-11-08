@@ -2,19 +2,29 @@
 
 Образ `system` для Hisense A9 (HLTE556N) на основе LineageOS 23.2 GSI, собранный из исходников, с e-ink-доработками.
 
-Скачать: [релиз eink-gsi-20261107](https://github.com/AndreyGladkov/A9PatchingService/releases/tag/eink-gsi-20261107) — образ `a9-eink-lineage-23.2-20261107.img.xz`, модуль `a9_eink_composer-v5.zip`, `SHA256SUMS`. Исходник модуля — [`magisk/a9_eink_composer`](../magisk/a9_eink_composer).
+Скачать: [релиз eink-gsi-20261108](https://github.com/AndreyGladkov/A9PatchingService/releases/tag/eink-gsi-20261108) — образ `a9-eink-lineage-23.2-20261108.img.xz`, модуль `a9_eink_composer-v5.zip`, `SHA256SUMS`. Исходник модуля — [`magisk/a9_eink_composer`](../magisk/a9_eink_composer).
 
 ## Отказ от ответственности
 
 Сборка сделана с участием LLM (ИИ-ассистента): код и патчи сделаны вместе с ним, я проверял их на своём A9. Это неофициальная любительская сборка, она не связана с LineageOS, Hisense или Google. Прошивка стирает данные и может оставить телефон незагружающимся. Всё предоставляется «как есть», без каких-либо гарантий: вы используете это на свой страх и риск, автор не отвечает за повреждения, потерю данных или «кирпич».
 
+## Что нового с 2026-11-07
+
+- **SMS и звонки в LTE.** В LTE модем A9 сам регистрируется в IMS, а в GSI не было службы IMS для Qualcomm, поэтому SMS не уходили и не приходили. Теперь в образе служба IMS из родной прошивки A9 (L2037.6.04.06.00) и точка доступа IMS. Звонки на время разговора по-прежнему уходят в 3G (VoLTE выключен). Проверено только на t2.
+- **LTE разрешён по умолчанию.** Раньше чистая установка разрешала только 2G/3G.
+- **Строка состояния под e-ink.** Батарея процентом; незаполненные деления сигнала — точки вместо полупрозрачных серых палок, которые e-ink превращал в «крупу».
+- **Шрифт Golos Text** в интерфейсе вместо Roboto и Google Sans Flex.
+- Поле поиска в Настройках сохраняет обводку 2dp и во время ввода.
+
 ## Что внутри
 
-- LineageOS 23.2 с Google-сервисами (GAPPS), сборка 2026-11-07.
+- LineageOS 23.2 с Google-сервисами (GAPPS), сборка 2026-11-08.
 - E-ink-интерфейс из [LineageOS_gsi_HBPC](https://github.com/dianqk/LineageOS_gsi_HBPC): плоские поверхности с чёрными рамками, без анимаций, статичные жесты, экран блокировки и шторка.
 - Монохромная тема по умолчанию, в том числе в мастере настройки.
 - A9 Service ([A9PatchingService](https://github.com/AndreyGladkov/A9PatchingService), ветка `eink-android16-scroll-menu`): режимы обновления по приложениям, кнопки A9, подсветка, AOD, плавающее меню, Speed при прокрутке.
-- Шрифты стоковые LineageOS (Roboto, в системном интерфейсе Google Sans Flex), эмодзи монохромные (Noto Emoji): цветные на e-ink превращаются в серые пятна.
+- Шрифт Golos Text, эмодзи монохромные (Noto Emoji): цветные на e-ink превращаются в серые пятна.
+- Служба IMS для Qualcomm (`org.codeaurora.ims`) из стоковой прошивки Hisense A9 — для SMS в LTE. Её кладёт патчер из папки `stock_ims/` рядом с [`patch_system_img.py`](../app/external_scripts/system_img_patcher/patch_system_img.py); в git этих файлов нет.
+- Значки строки состояния без полупрозрачных частей: оверлеи из [`system_img_patcher/overlays`](../app/external_scripts/system_img_patcher/overlays).
 
 ## Требования
 
@@ -29,18 +39,19 @@
 1. Проверьте архив и распакуйте его:
    ```sh
    shasum -a 256 -c SHA256SUMS
-   xz -dk a9-eink-lineage-23.2-20261107.img.xz
+   xz -dk a9-eink-lineage-23.2-20261108.img.xz
    ```
 2. Перезагрузите телефон в fastbootd и прошейте `system`:
    ```sh
    adb reboot fastboot
-   fastboot flash system a9-eink-lineage-23.2-20261107.img
+   fastboot flash system a9-eink-lineage-23.2-20261108.img
    fastboot -w
    fastboot reboot
    ```
    Ошибка `Erasing 'cache' FAILED (Partition doesn't exist)` на A9 — норма.
 3. Первая загрузка идёт около 2 минут. Затем пройдите мастер настройки.
-4. A9 Service включается сам. Если его нет в Настройки → Специальные возможности, включите его там.
+4. **После мастера настройки один раз перезагрузите телефон**: служба IMS подключается со второй загрузки, до этого SMS в LTE не работают.
+5. A9 Service включается сам. Если его нет в Настройки → Специальные возможности, включите его там.
 
 Root ставится отдельно (Magisk в `boot`) и для работы сборки не нужен.
 
@@ -62,8 +73,8 @@ A9 при неудачной загрузке открывает стоково�
 
 ## Обновления
 
-Образ подписан ключом автора сборки. Следующие версии этой же сборки ставятся одним `fastboot flash system`, без `fastboot -w`, и данные сохраняются. Переход с любой другой прошивки на эту и обратно — только со стиранием данных.
+Образ подписан ключом автора сборки. Следующие версии этой же сборки ставятся одним `fastboot flash system`, без `fastboot -w`, и данные сохраняются. С версии 2026-11-07 так и обновляйтесь; батарея останется значком, пока не выберете Настройки → Система → Строка состояния → Стиль батареи → «Текст»: это значение по умолчанию действует только на чистой установке. Переход с любой другой прошивки на эту и обратно — только со стиранием данных.
 
 ## Благодарности и лицензии
 
-LineageOS, TrebleDroid и [MisterZtr](https://github.com/MisterZtr), [dianqk](https://github.com/dianqk/LineageOS_gsi_HBPC) (HBPC), [damianmqr](https://github.com/damianmqr) (A9PatchingService). Шрифт Noto Emoji — SIL Open Font License 1.1.
+LineageOS, TrebleDroid и [MisterZtr](https://github.com/MisterZtr), [dianqk](https://github.com/dianqk/LineageOS_gsi_HBPC) (HBPC), [damianmqr](https://github.com/damianmqr) (A9PatchingService). Шрифты Golos Text и Noto Emoji — SIL Open Font License 1.1. Служба IMS и её библиотеки — закрытые файлы Hisense, взяты без изменений из стоковой прошивки A9.
