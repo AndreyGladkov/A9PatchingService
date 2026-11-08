@@ -7,4 +7,5 @@
     <dimen name="menu_control_height">44dp</dimen>
     <dimen name="menu_title_gap">8dp</dimen>
     <dimen name="menu_group_gap">16dp</dimen>
+    <dimen name="menu_night_mode_width">88dp</dimen>
 </resources>

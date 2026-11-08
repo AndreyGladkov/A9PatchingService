@@ -175,20 +175,37 @@
             android:progressDrawable="@drawable/menu_seekbar_track"
             android:thumbTint="@color/black" />
 
-        <ImageView
-            android:layout_width="24dp"
-            android:layout_height="24dp"
-            android:layout_marginEnd="8dp"
-            android:src="@drawable/baseline_moon_24" />
-
         <Button
             android:id="@+id/button_night"
             style="@style/SegmentButtonStyle"
-            android:layout_width="wrap_content"
+            android:layout_width="@dimen/menu_night_mode_width"
             android:layout_height="@dimen/menu_control_height"
             android:background="@drawable/segmented_frame"
-            android:paddingHorizontal="16dp"
             android:text="Manual" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/night_light_container"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <ImageView
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:src="@drawable/baseline_moon_24" />
+
+        <SeekBar
+            android:id="@+id/warmth_seekbar"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginEnd="@dimen/menu_night_mode_width"
+            android:paddingVertical="8dp"
+            android:progressDrawable="@drawable/menu_seekbar_track"
+            android:thumbTint="@color/black" />
+
     </LinearLayout>
 
     <LinearLayout
