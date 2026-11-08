@@ -1575,6 +1575,10 @@ def update_build_prop():
         "ro.recents.grid": "true",
         # The GSI leaves it unset, so a fresh install allows only 2G/3G. 9 is LTE/GSM/WCDMA, one per SIM slot.
         "ro.telephony.default_network": "9,9",
+        # Carrier configs in the GSI mark VoLTE unavailable for carriers like Tele2 Russia, so calls fell back
+        # to 3G, and nothing at all where 3G is shut down. The stock IMS service handles VoLTE; this makes it
+        # available and shows the VoLTE switch in the SIM settings, which turns it off per user.
+        "persist.dbg.volte_avail_ovr": "1",
     }
     logging.info("Updating build.prop...")
     with open("d/system/build.prop", "r") as file:
