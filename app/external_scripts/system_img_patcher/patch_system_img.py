@@ -1579,6 +1579,15 @@ def update_build_prop():
         # to 3G, and nothing at all where 3G is shut down. The stock IMS service handles VoLTE; this makes it
         # available and shows the VoLTE switch in the SIM settings, which turns it off per user.
         "persist.dbg.volte_avail_ovr": "1",
+        # Treble Settings audio toggles the A9 needs (Qualcomm and Misc pages), on from the first boot: with the
+        # stock audio policy, VoIP apps switched to the earpiece play stereo into the mono path and sound fast and
+        # high-pitched. The switches in Treble Settings still show off: the app keeps its own preferences.
+        "persist.sys.phh.caf.audio_policy": "1",
+        "persist.sys.phh.disable_stereo_voip": "true",
+        "persist.sys.overlay.devinputjack": "true",
+        # The stock audio HAL routes wired headphones through the ESS ES9218 Hi-Fi DAC only when this is set; on the
+        # stock firmware the Hisense music player set it, and the GSI does not ship that player.
+        "persist.vendor.hmct.hifi_on": "1",
     }
     logging.info("Updating build.prop...")
     with open("d/system/build.prop", "r") as file:
