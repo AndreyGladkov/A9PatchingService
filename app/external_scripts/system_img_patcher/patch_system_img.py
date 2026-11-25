@@ -1692,6 +1692,10 @@ def install_stock_ims():
     subprocess.run(["chown", "root:root", rc_path])
     subprocess.run(["setfattr", "-n", "security.selinux", "-v", "u:object_r:system_file:s0", rc_path])
 
+# The kernel starts with USB OTG disabled on every boot; the stock firmware let a Hisense system app
+# turn it on, and a GSI has no such app.
+ENABLE_OTG_ENTRY = "    exec_background u:r:phhsu_daemon:s0 root -- /system/bin/sh -c \"echo 0 > /sys/debug_control/type_c_disable_otg\"\n"
+
 def update_vndk_rc():
     logging.info("Updating vndk init script...")
     install_enable_accessibility_script()
@@ -1719,6 +1723,7 @@ def update_vndk_rc():
         "    exec_background u:r:phhsu_daemon:s0 root -- /system/bin/chcon u:object_r:sysfs_leds:s0 /sys/class/backlight/ktd3137-bl-4/brightness\n",
         "    exec_background u:r:phhsu_daemon:s0 root -- /system/bin/sh -c \"if [ ! -f /data/local/tmp/reset_carriers_done ]; then /system/bin/touch /data/local/tmp/reset_carriers_done; /system/bin/content delete --uri content://telephony/carriers/restore; fi\"\n",
         "    exec_background u:r:phhsu_daemon:s0 root -- /system/bin/sh -c \"if [ ! -f /data/local/tmp/disable_ambient_display ]; then /system/bin/touch /data/local/tmp/disable_ambient_display; /system/bin/settings put secure doze_enabled 0; fi\"\n",
+        ENABLE_OTG_ENTRY,
     ]
 
     found_boot_completed = False
