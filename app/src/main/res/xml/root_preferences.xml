@@ -116,6 +116,11 @@
             app:title="Set Refresh Mode to Clear on Lock" />
 
         <SwitchPreferenceCompat
+            app:key="clear_on_lock"
+            app:summary="Clean ghosting off the always-on display after locking"
+            app:title="Full Refresh on Lock" />
+
+        <SwitchPreferenceCompat
             app:key="disable_perapprefresh"
             app:disableDependentsState="true"
             app:summaryOff="Disable setting refresh mode per application"

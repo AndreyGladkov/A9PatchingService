@@ -44,6 +44,10 @@ import com.lmqr.ha9_comp_service.command_runners.UnixSocketCommandRunner
 import com.lmqr.ha9_comp_service.databinding.FloatingMenuLayoutBinding
 import kotlin.math.max
 
+// SystemUI draws the always-on display within about 0.5 s of screen off (DozeUi pushes a second
+// frame after 500 ms); an earlier clear would refresh the app that was on screen instead.
+private const val CLEAR_ON_LOCK_DELAY_MS = 1000L
+
 
 class A9AccessibilityService : AccessibilityService(),
     SharedPreferences.OnSharedPreferenceChangeListener {
@@ -65,6 +69,11 @@ class A9AccessibilityService : AccessibilityService(),
                         handler.postDelayed({
                             commandRunner.runCommands(arrayOf(Commands.SPEED_CLEAR))
                         }, 150)
+                    if (sharedPreferences.getBoolean("clear_on_lock", false))
+                        handler.postDelayed({
+                            if (!isScreenOn)
+                                commandRunner.runCommands(arrayOf(Commands.FORCE_CLEAR))
+                        }, CLEAR_ON_LOCK_DELAY_MS)
                 }
                 Intent.ACTION_SCREEN_ON -> {
                     isScreenOn = true
