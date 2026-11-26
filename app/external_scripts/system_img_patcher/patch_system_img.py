@@ -1144,6 +1144,11 @@ def patch_services_jar():
                         action = patch_SetBrightness
                     ),
                     InstructionPatch(
+                        # setAmbientLux asks HysteresisLevels for thresholds in lux, which must not be
+                        # mirrored like a 0..1 brightness: 1 - (1 - lux) pinned the darkening threshold
+                        # at 1 lux, so after bright light the frontlight stayed off until the screen
+                        # was turned off and on.
+                        method = MethodDetails(name = Matcher.regex(r"(?!setAmbientLux$)")),
                         instruction = InstructionDetails(
                             InstructionType.METHOD_INVOKE,
                             method = Matcher.regex(r"get.*Threshold.*"),
