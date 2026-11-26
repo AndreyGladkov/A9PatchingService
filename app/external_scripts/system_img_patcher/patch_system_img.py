@@ -1,5 +1,6 @@
 from smali_patcher import *
 import base64
+import glob
 import hashlib
 import sys
 import re
@@ -8,6 +9,7 @@ import shutil
 import struct
 import subprocess
 import xml.etree.ElementTree as ET
+import zipfile
 import logging
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -1658,6 +1660,12 @@ STOCK_IMS_RC = (
     "\"sleep 20; /system/bin/cmd phone ims enable -s 0; /system/bin/cmd phone ims enable -s 1\"\n"
 )
 
+def make_system_dir(path, secontext = "u:object_r:system_file:s0"):
+    if not os.path.isdir(path):
+        os.mkdir(path, 0o755)
+        subprocess.run(["chown", "root:root", path])
+        subprocess.run(["setfattr", "-n", "security.selinux", "-v", secontext, path])
+
 def stock_ims_secontext(path):
     if os.path.basename(os.path.dirname(path)) in ("lib", "lib64"):
         return "u:object_r:system_lib_file:s0"
@@ -1672,10 +1680,7 @@ def install_stock_ims():
         target_root = os.path.join("d/system", os.path.relpath(root, STOCK_IMS_DIR))
         for name in dirs:
             target = os.path.join(target_root, name)
-            if not os.path.isdir(target):
-                os.mkdir(target, 0o755)
-                subprocess.run(["chown", "root:root", target])
-                subprocess.run(["setfattr", "-n", "security.selinux", "-v", stock_ims_secontext(os.path.join(target, "x")), target])
+            make_system_dir(target, stock_ims_secontext(os.path.join(target, "x")))
         for name in files:
             target = os.path.join(target_root, name)
             replace_file(target, src = os.path.join(root, name), secontext = stock_ims_secontext(target))
@@ -1755,6 +1760,36 @@ def update_vndk_rc():
             file.write("    write /sys/class/backlight/ktd3137-bl-4/brightness ${sys.linevibrator_short}\n")
             file.write("    write /sys/class/backlight/aw99703-bl-2/brightness ${sys.linevibrator_short}\n\n")
 
+INK_KEYBOARD_APK = "../InkKeyboard.apk"
+INK_KEYBOARD_DIR = "d/system/product/app/InkKeyboard"
+
+def install_ink_keyboard():
+    if not os.path.isfile(INK_KEYBOARD_APK):
+        logging.warning(f"{INK_KEYBOARD_APK} doesn't exist: keeping the AOSP keyboard.")
+        return
+    logging.info("Replacing the AOSP keyboard with Ink Keyboard...")
+    shutil.rmtree("d/system/product/app/LatinIME", ignore_errors = True)
+    for overlay in glob.glob("d/system/product/overlay/LatinIME__*.apk"):
+        os.remove(overlay)
+
+    lib_dir = os.path.join(INK_KEYBOARD_DIR, "lib", "arm64")
+    for path in (INK_KEYBOARD_DIR, os.path.dirname(lib_dir), lib_dir):
+        make_system_dir(path)
+    replace_file(os.path.join(INK_KEYBOARD_DIR, "InkKeyboard.apk"), src = INK_KEYBOARD_APK)
+
+    # The APK keeps its native libraries compressed, and Android extracts them only for apps
+    # installed into /data, so a copy in /system needs them unpacked next to it.
+    extracted_dir = "ink-keyboard-libs"
+    os.makedirs(extracted_dir, exist_ok = True)
+    with zipfile.ZipFile(INK_KEYBOARD_APK) as apk:
+        for entry in apk.namelist():
+            if entry.startswith("lib/arm64-v8a/") and entry.endswith(".so"):
+                extracted = os.path.join(extracted_dir, os.path.basename(entry))
+                with apk.open(entry) as src, open(extracted, "wb") as dst:
+                    shutil.copyfileobj(src, dst)
+                replace_file(os.path.join(lib_dir, os.path.basename(entry)), src = extracted)
+    shutil.rmtree(extracted_dir)
+
 def main():
     if len(sys.argv) != 2:
         logging.error("Usage: sudo python patch_system_img.py [/path/to/system.img]")
@@ -1795,6 +1830,7 @@ def main():
         replace_file("d/system/app/F-Droid.apk")
         replace_file("d/system/app/ims-caf-u.apk")
         replace_file("d/system/etc/hosts")
+        install_ink_keyboard()
         update_build_prop()
         if platform_key_matches:
             try:
