@@ -1706,9 +1706,22 @@ def install_stock_ims():
 # turn it on, and a GSI has no such app.
 ENABLE_OTG_ENTRY = "    exec_background u:r:phhsu_daemon:s0 root -- /system/bin/sh -c \"echo 0 > /sys/debug_control/type_c_disable_otg\"\n"
 
+# `cmd phone ...` run as phhsu_daemon does its work, then never exits: the phone process is denied the
+# binder call that returns the result. Hit by `cmd phone ims enable` at boot and `svc data` in the daemon.
+PHHSU_DAEMON_SEPOLICY = "(allow radio phhsu_daemon (binder (call transfer)))\n"
+
+def allow_phone_to_answer_phhsu_daemon():
+    policy_path = "d/system/system_ext/etc/selinux/system_ext_sepolicy.cil"
+    with open(policy_path, "r") as file:
+        policy = file.read()
+    if PHHSU_DAEMON_SEPOLICY not in policy:
+        with open(policy_path, "a") as file:
+            file.write(PHHSU_DAEMON_SEPOLICY)
+
 def update_vndk_rc():
     logging.info("Updating vndk init script...")
     install_enable_accessibility_script()
+    allow_phone_to_answer_phhsu_daemon()
     vndk_rc_path = "d/system/etc/init/vndk.rc"
     with open(vndk_rc_path, "r") as file:
         lines = file.readlines()
