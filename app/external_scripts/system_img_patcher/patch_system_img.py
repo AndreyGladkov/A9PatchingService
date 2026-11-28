@@ -1859,6 +1859,7 @@ def install_ink_apps():
     grant_default_permissions()
     replace_file("d/system/product/overlay/a9-eink-ink-apps.apk")
     replace_file("d/system/product/overlay/a9-eink-ink-launcher.apk")
+    replace_file("d/system/product/overlay/a9-eink-ink-telecom.apk")
     install_ink_preload_apps()
 
 def allow_privileged_permissions(package, permissions):

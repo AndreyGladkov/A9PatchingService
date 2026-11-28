@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Telecom binds the system dialer (config_defaultDialer) by this class name, which is AOSP's InCallUI unless overlaid. -->
+<resources>
+    <string name="incall_default_class" translatable="false">io.github.andreygladkov.inkphone.call.InkInCallService</string>
+</resources>
