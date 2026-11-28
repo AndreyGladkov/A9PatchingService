@@ -14,8 +14,8 @@ android {
         applicationId = "com.lmqr.ha9_comp_service"
         minSdk = 27
         targetSdk = 27
-        versionCode = 45
-        versionName = "3.8.1-colors.5"
+        versionCode = 46
+        versionName = "3.8.1-colors.6"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
