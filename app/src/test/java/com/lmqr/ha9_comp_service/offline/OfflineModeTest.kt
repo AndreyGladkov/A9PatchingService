@@ -16,42 +16,28 @@ class OfflineModeTest {
         override fun onDestroy() = Unit
     }
 
-    private class Network(override var isWifiOn: Boolean, override var isDataOn: Boolean) : NetworkSwitches
-
     private val runner = RecordingRunner()
     private val prefs = FakeSharedPreferences()
-
-    private fun mode(wifi: Boolean, data: Boolean) = OfflineMode(prefs, Network(wifi, data), runner)
+    private val mode = OfflineMode(prefs, runner)
 
     @Test
-    fun `entering turns off what is on`() {
-        val mode = mode(wifi = true, data = true)
+    fun `entering turns off Wi-Fi and mobile data`() {
         mode.toggle()
         assertTrue(mode.isOn)
         assertEquals(listOf("wif0", "dat0"), runner.sent)
     }
 
     @Test
-    fun `entering leaves alone what is already off`() {
-        mode(wifi = true, data = false).toggle()
-        assertEquals(listOf("wif0"), runner.sent)
-    }
-
-    @Test
-    fun `leaving brings back only what was on`() {
-        val network = Network(isWifiOn = false, isDataOn = true)
-        val mode = OfflineMode(prefs, network, runner)
+    fun `leaving turns on Wi-Fi and mobile data`() {
         mode.toggle()
-        network.isDataOn = false
         runner.sent.clear()
         mode.toggle()
         assertFalse(mode.isOn)
-        assertEquals(listOf("dat1"), runner.sent)
+        assertEquals(listOf("wif1", "dat1"), runner.sent)
     }
 
     @Test
     fun `network turned on by hand ends the mode without touching anything`() {
-        val mode = mode(wifi = true, data = true)
         mode.toggle()
         runner.sent.clear()
         mode.onNetworkTurnedOn()
@@ -60,22 +46,30 @@ class OfflineModeTest {
     }
 
     @Test
+    fun `after the mode ended by hand the next press turns everything off again`() {
+        mode.toggle()
+        mode.onNetworkTurnedOn()
+        runner.sent.clear()
+        mode.toggle()
+        assertTrue(mode.isOn)
+        assertEquals(listOf("wif0", "dat0"), runner.sent)
+    }
+
+    @Test
     fun `network turned on outside the mode changes nothing`() {
-        val mode = mode(wifi = true, data = false)
         mode.onNetworkTurnedOn()
         assertFalse(mode.isOn)
-        mode.toggle()
-        assertEquals(listOf("wif0"), runner.sent)
+        assertEquals(emptyList<String>(), runner.sent)
     }
 
     @Test
     fun `mode survives a restart of the service`() {
-        mode(wifi = true, data = false).toggle()
-        val restarted = mode(wifi = false, data = false)
+        mode.toggle()
+        val restarted = OfflineMode(prefs, runner)
         assertTrue(restarted.isOn)
         runner.sent.clear()
         restarted.toggle()
-        assertEquals(listOf("wif1"), runner.sent)
+        assertEquals(listOf("wif1", "dat1"), runner.sent)
     }
 
     @Test

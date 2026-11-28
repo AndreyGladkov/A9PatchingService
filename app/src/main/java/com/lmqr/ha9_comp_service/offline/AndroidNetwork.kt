@@ -16,14 +16,11 @@ import android.telephony.SubscriptionManager
  * permission. `svc data` switches the default data SIM, and its setting is `mobile_data<subId>`:
  * plain `mobile_data` does not change when the SIM sits in the second slot.
  */
-class AndroidNetwork(private val context: Context) : NetworkSwitches {
-    private val wifiManager = context.applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
+class AndroidNetwork(private val context: Context) {
     private var wifiReceiver: BroadcastReceiver? = null
     private var dataObserver: ContentObserver? = null
 
-    override val isWifiOn: Boolean get() = wifiManager.isWifiEnabled
-
-    override val isDataOn: Boolean get() = Settings.Global.getInt(context.contentResolver, dataSetting(), 0) == 1
+    private val isDataOn: Boolean get() = Settings.Global.getInt(context.contentResolver, dataSetting(), 0) == 1
 
     fun listen(onTurnedOn: () -> Unit) {
         wifiReceiver = object : BroadcastReceiver() {

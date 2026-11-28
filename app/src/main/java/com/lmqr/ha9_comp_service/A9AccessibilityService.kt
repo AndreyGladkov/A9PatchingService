@@ -154,7 +154,7 @@ class A9AccessibilityService : AccessibilityService(),
         buttonActionManager = ButtonActionManager(commandRunner)
         appColorsManager = AppColorsManager(sharedPreferences, commandRunner)
         network = AndroidNetwork(this)
-        offlineMode = OfflineMode(sharedPreferences, network, commandRunner)
+        offlineMode = OfflineMode(sharedPreferences, commandRunner)
         offlineStrip = OfflineStrip(this)
         sharedPreferences.edit()
             .putBoolean(OfflineMode.KEY_SUPPORTED, OfflineMode.isSupportedBy(commandRunner.query(Commands.VERSION)))
