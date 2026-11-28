@@ -1774,34 +1774,160 @@ def update_vndk_rc():
             file.write("    write /sys/class/backlight/aw99703-bl-2/brightness ${sys.linevibrator_short}\n\n")
 
 INK_KEYBOARD_APK = "../InkKeyboard.apk"
-INK_KEYBOARD_DIR = "d/system/product/app/InkKeyboard"
+INK_APPS_DIR = "../ink_apps"
+# Each app from AndreyGladkov/ink-phone, as ink_apps/<name>.apk, with the stock apps it takes the place of.
+INK_APPS = {
+    "InkLauncher": [],
+    "InkPhone": ["d/system/product/priv-app/Dialer"],
+    "InkMessages": ["d/system/product/app/messaging"],
+    "InkClock": ["d/system/product/app/DeskClock"],
+    "InkCalculator": ["d/system/product/app/ExactCalculator"],
+    "InkCalendar": ["d/system/product/app/Etar"],
+    "InkGallery": ["d/system/product/app/Glimpse", "d/system/product/app/Gallery2"],
+}
+# Apps installed into priv-app, with the privileged permissions they request: Android refuses to boot
+# with a privileged app whose privileged permissions are not listed. Ink Launcher must be privileged for
+# Android to keep the priority of its home filter, which makes it the default over Trebuchet.
+INK_PRIVILEGED_APPS = {
+    "InkLauncher": ("io.github.andreygladkov.inklauncher", ["android.permission.PACKAGE_USAGE_STATS"]),
+}
+# Runtime permissions Android grants to these system apps on first boot, which the user can still revoke.
+INK_DEFAULT_PERMISSIONS = {
+    "io.github.andreygladkov.inkgallery": ["android.permission.READ_MEDIA_IMAGES", "android.permission.READ_MEDIA_VIDEO"],
+    "io.github.andreygladkov.inkclock": ["android.permission.POST_NOTIFICATIONS"],
+    "io.github.andreygladkov.inkcalendar": ["android.permission.READ_CALENDAR", "android.permission.WRITE_CALENDAR",
+                                            "android.permission.POST_NOTIFICATIONS"],
+}
+# Apps the user may uninstall. Android cannot uninstall an app in /system, so these are installed
+# into /data on boot, each once: one the user uninstalled stays uninstalled after an update. Default
+# permissions apply only to system apps, so these get theirs granted right after the install.
+INK_PRELOAD_APPS = {
+    "InkWeather": ("io.github.andreygladkov.inkweather", []),
+    "InkTasks": ("io.github.andreygladkov.inktasks", ["android.permission.POST_NOTIFICATIONS"]),
+}
+INK_PRELOAD_DIR = "/system/etc/ink-preload"
+INK_PRELOAD_SCRIPT = "/system/bin/a9-ink-preload.sh"
+
+def install_system_app(name, apk, replaces, privileged = False):
+    for stock_dir in replaces:
+        shutil.rmtree(stock_dir, ignore_errors = True)
+        for overlay in glob.glob(f"d/system/product/overlay/{os.path.basename(stock_dir)}__*.apk"):
+            os.remove(overlay)
+
+    app_dir = f"d/system/product/{'priv-app' if privileged else 'app'}/{name}"
+    lib_dir = os.path.join(app_dir, "lib", "arm64")
+    make_system_dir(app_dir)
+    replace_file(os.path.join(app_dir, f"{name}.apk"), src = apk)
+
+    # APKs keep their native libraries compressed, and Android extracts them only for apps
+    # installed into /data, so a copy in /system needs them unpacked next to it.
+    with zipfile.ZipFile(apk) as archive:
+        libs = [entry for entry in archive.namelist()
+                if entry.startswith("lib/arm64-v8a/") and entry.endswith(".so")]
+        if not libs:
+            return
+        for path in (os.path.dirname(lib_dir), lib_dir):
+            make_system_dir(path)
+        extracted_dir = f"{name}-libs"
+        os.makedirs(extracted_dir, exist_ok = True)
+        for entry in libs:
+            extracted = os.path.join(extracted_dir, os.path.basename(entry))
+            with archive.open(entry) as src, open(extracted, "wb") as dst:
+                shutil.copyfileobj(src, dst)
+            replace_file(os.path.join(lib_dir, os.path.basename(entry)), src = extracted)
+        shutil.rmtree(extracted_dir)
 
 def install_ink_keyboard():
     if not os.path.isfile(INK_KEYBOARD_APK):
         logging.warning(f"{INK_KEYBOARD_APK} doesn't exist: keeping the AOSP keyboard.")
         return
     logging.info("Replacing the AOSP keyboard with Ink Keyboard...")
-    shutil.rmtree("d/system/product/app/LatinIME", ignore_errors = True)
-    for overlay in glob.glob("d/system/product/overlay/LatinIME__*.apk"):
-        os.remove(overlay)
+    install_system_app("InkKeyboard", INK_KEYBOARD_APK, ["d/system/product/app/LatinIME"])
 
-    lib_dir = os.path.join(INK_KEYBOARD_DIR, "lib", "arm64")
-    for path in (INK_KEYBOARD_DIR, os.path.dirname(lib_dir), lib_dir):
-        make_system_dir(path)
-    replace_file(os.path.join(INK_KEYBOARD_DIR, "InkKeyboard.apk"), src = INK_KEYBOARD_APK)
+def install_ink_apps():
+    missing = [name for name in [*INK_APPS, *INK_PRELOAD_APPS]
+               if not os.path.isfile(os.path.join(INK_APPS_DIR, f"{name}.apk"))]
+    if missing:
+        logging.warning(f"{INK_APPS_DIR} lacks {', '.join(missing)}: keeping the stock apps.")
+        return
+    logging.info("Replacing the stock apps with the Ink apps...")
+    for name, replaces in INK_APPS.items():
+        install_system_app(name, os.path.join(INK_APPS_DIR, f"{name}.apk"), replaces,
+                           privileged = name in INK_PRIVILEGED_APPS)
+    for package, permissions in INK_PRIVILEGED_APPS.values():
+        allow_privileged_permissions(package, permissions)
+    grant_default_permissions()
+    replace_file("d/system/product/overlay/a9-eink-ink-apps.apk")
+    replace_file("d/system/product/overlay/a9-eink-ink-launcher.apk")
+    install_ink_preload_apps()
 
-    # The APK keeps its native libraries compressed, and Android extracts them only for apps
-    # installed into /data, so a copy in /system needs them unpacked next to it.
-    extracted_dir = "ink-keyboard-libs"
-    os.makedirs(extracted_dir, exist_ok = True)
-    with zipfile.ZipFile(INK_KEYBOARD_APK) as apk:
-        for entry in apk.namelist():
-            if entry.startswith("lib/arm64-v8a/") and entry.endswith(".so"):
-                extracted = os.path.join(extracted_dir, os.path.basename(entry))
-                with apk.open(entry) as src, open(extracted, "wb") as dst:
-                    shutil.copyfileobj(src, dst)
-                replace_file(os.path.join(lib_dir, os.path.basename(entry)), src = extracted)
-    shutil.rmtree(extracted_dir)
+def allow_privileged_permissions(package, permissions):
+    path = f"d/system/product/etc/permissions/privapp-permissions-{package}.xml"
+    make_system_dir(os.path.dirname(path))
+    with open(path, "w") as file:
+        file.write(
+            '<?xml version="1.0" encoding="utf-8"?>\n'
+            '<permissions>\n'
+            f'    <privapp-permissions package="{package}">\n'
+            + "".join(f'        <permission name="{permission}" />\n' for permission in permissions) +
+            '    </privapp-permissions>\n'
+            '</permissions>\n'
+        )
+    os.chmod(path, 0o644)
+    subprocess.run(["chown", "root:root", path])
+    subprocess.run(["setfattr", "-n", "security.selinux", "-v", "u:object_r:system_file:s0", path])
+
+def grant_default_permissions():
+    path = "d/system/product/etc/default-permissions/default-permissions-ink.xml"
+    make_system_dir(os.path.dirname(path))
+    with open(path, "w") as file:
+        file.write('<?xml version="1.0" encoding="utf-8"?>\n<exceptions>\n')
+        for package, permissions in INK_DEFAULT_PERMISSIONS.items():
+            file.write(f'    <exception package="{package}">\n')
+            file.writelines(f'        <permission name="{permission}" fixed="false" />\n' for permission in permissions)
+            file.write('    </exception>\n')
+        file.write('</exceptions>\n')
+    os.chmod(path, 0o644)
+    subprocess.run(["chown", "root:root", path])
+    subprocess.run(["setfattr", "-n", "security.selinux", "-v", "u:object_r:system_file:s0", path])
+
+def install_ink_preload_apps():
+    make_system_dir(f"d{INK_PRELOAD_DIR}")
+    for name in INK_PRELOAD_APPS:
+        replace_file(f"d{INK_PRELOAD_DIR}/{name}.apk", src = os.path.join(INK_APPS_DIR, f"{name}.apk"))
+
+    script_path = f"d{INK_PRELOAD_SCRIPT}"
+    with open(script_path, "w") as file:
+        file.write(
+            '#!/system/bin/sh\n'
+            # pm install fails while the user's storage is still locked behind the PIN
+            'until [ "$(getprop sys.user.0.ce_available)" = true ]; do sleep 10; done\n'
+        )
+        for name, (package, permissions) in INK_PRELOAD_APPS.items():
+            marker = f"persist.sys.ink.preloaded.{name}"
+            file.write(
+                f'if [ "$(getprop {marker})" != 1 ]; then\n'
+                f'    if /system/bin/pm path {package} >/dev/null 2>&1; then\n'
+                f'        setprop {marker} 1\n'
+                f'    elif /system/bin/pm install {INK_PRELOAD_DIR}/{name}.apk; then\n'
+                + "".join(f'        /system/bin/pm grant {package} {permission}\n' for permission in permissions) +
+                f'        setprop {marker} 1\n'
+                f'    fi\n'
+                f'fi\n'
+            )
+    os.chmod(script_path, 0o755)
+    subprocess.run(["chown", "root:2000", script_path])
+    subprocess.run(["setfattr", "-n", "security.selinux", "-v", "u:object_r:system_file:s0", script_path])
+
+    rc_path = "d/system/etc/init/a9_ink_preload.rc"
+    with open(rc_path, "w") as file:
+        file.write(
+            "on property:sys.boot_completed=1\n"
+            f"    exec_background u:r:phhsu_daemon:s0 root -- /system/bin/sh {INK_PRELOAD_SCRIPT}\n"
+        )
+    os.chmod(rc_path, 0o644)
+    subprocess.run(["chown", "root:root", rc_path])
+    subprocess.run(["setfattr", "-n", "security.selinux", "-v", "u:object_r:system_file:s0", rc_path])
 
 def main():
     if len(sys.argv) != 2:
@@ -1844,12 +1970,14 @@ def main():
         replace_file("d/system/app/ims-caf-u.apk")
         replace_file("d/system/etc/hosts")
         install_ink_keyboard()
+        install_ink_apps()
         update_build_prop()
         if platform_key_matches:
-            try:
-                patch_CallUI()
-            except subprocess.CalledProcessError:
-                logging.warning('Dialer app patching error, skipping.')
+            if os.path.isdir("d/system/product/priv-app/Dialer"):
+                try:
+                    patch_CallUI()
+                except subprocess.CalledProcessError:
+                    logging.warning('Dialer app patching error, skipping.')
             patch_systemui()
         patch_services_jar()
         update_vndk_rc()

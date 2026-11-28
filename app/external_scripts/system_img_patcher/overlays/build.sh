@@ -10,7 +10,7 @@ HERE=$(cd "$(dirname "$0")" && pwd)
 OUT=$(dirname "$HERE")
 WORK=$(mktemp -d)
 trap 'rm -rf "$WORK"' EXIT
-for name in eink-statusbar-icons eink-battery-text; do
+for name in eink-statusbar-icons eink-battery-text eink-ink-apps eink-ink-launcher; do
     "$TOOLS/aapt2" compile --dir "$HERE/$name/res" -o "$WORK/$name.zip"
     "$TOOLS/aapt2" link -I "$ANDROID_JAR" --manifest "$HERE/$name/AndroidManifest.xml" --min-sdk-version 30 \
         -o "$WORK/$name-unsigned.apk" "$WORK/$name.zip"

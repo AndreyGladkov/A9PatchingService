@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="config_defaultDialer" translatable="false">io.github.andreygladkov.inkphone</string>
+    <string name="config_defaultSms" translatable="false">io.github.andreygladkov.inkmessages</string>
+    <string name="config_defaultListenerAccessPackages" translatable="false">io.github.andreygladkov.inklauncher</string>
+</resources>

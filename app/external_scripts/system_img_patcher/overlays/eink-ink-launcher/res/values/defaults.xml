@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="default_icon_pack" translatable="false">io.github.andreygladkov.arcticonsbold</string>
+    <bool name="default_icon_frame">true</bool>
+</resources>
