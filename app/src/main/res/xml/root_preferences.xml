@@ -26,7 +26,7 @@
             app:summary="Select an action for long button press"
             app:entries="@array/button_action_entries"
             app:entryValues="@array/button_action_values"
-            app:defaultValue="dummy"
+            app:defaultValue="offline"
             app:dialogTitle="Choose an action for long press" />
 
         <ListPreference

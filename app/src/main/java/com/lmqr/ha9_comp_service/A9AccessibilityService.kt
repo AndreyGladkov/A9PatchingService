@@ -19,6 +19,8 @@ import android.net.Uri
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import android.os.VibrationEffect
+import android.os.Vibrator
 import android.provider.Settings
 import android.util.Log
 import android.view.Gravity
@@ -42,11 +44,15 @@ import com.lmqr.ha9_comp_service.command_runners.CommandRunner
 import com.lmqr.ha9_comp_service.command_runners.Commands
 import com.lmqr.ha9_comp_service.command_runners.UnixSocketCommandRunner
 import com.lmqr.ha9_comp_service.databinding.FloatingMenuLayoutBinding
+import com.lmqr.ha9_comp_service.offline.AndroidNetwork
+import com.lmqr.ha9_comp_service.offline.OfflineMode
+import com.lmqr.ha9_comp_service.offline.OfflineStrip
 import kotlin.math.max
 
 // SystemUI draws the always-on display within about 0.5 s of screen off (DozeUi pushes a second
 // frame after 500 ms); an earlier clear would refresh the app that was on screen instead.
 private const val CLEAR_ON_LOCK_DELAY_MS = 1000L
+private const val OFFLINE_VIBRATION_MS = 40L
 
 
 class A9AccessibilityService : AccessibilityService(),
@@ -57,6 +63,9 @@ class A9AccessibilityService : AccessibilityService(),
     private lateinit var sharedPreferences: SharedPreferences
     private lateinit var buttonActionManager: ButtonActionManager
     private lateinit var appColorsManager: AppColorsManager
+    private lateinit var network: AndroidNetwork
+    private lateinit var offlineMode: OfflineMode
+    private lateinit var offlineStrip: OfflineStrip
     private var isScreenOn = true
 
     private val receiver: BroadcastReceiver = object : BroadcastReceiver() {
@@ -144,6 +153,13 @@ class A9AccessibilityService : AccessibilityService(),
 
         buttonActionManager = ButtonActionManager(commandRunner)
         appColorsManager = AppColorsManager(sharedPreferences, commandRunner)
+        network = AndroidNetwork(this)
+        offlineMode = OfflineMode(sharedPreferences, network, commandRunner)
+        offlineStrip = OfflineStrip(this)
+        sharedPreferences.edit()
+            .putBoolean(OfflineMode.KEY_SUPPORTED, OfflineMode.isSupportedBy(commandRunner.query(Commands.VERSION)))
+            .apply()
+        network.listen(offlineMode::onNetworkTurnedOn)
 
         val filterScreen = IntentFilter()
         filterScreen.addAction(Intent.ACTION_SCREEN_ON)
@@ -398,7 +414,18 @@ class A9AccessibilityService : AccessibilityService(),
         }
     }
 
+    fun toggleOffline() {
+        if (!sharedPreferences.getBoolean(OfflineMode.KEY_SUPPORTED, false))
+            return
+        offlineMode.toggle()
+        @Suppress("DEPRECATION")
+        (getSystemService(VIBRATOR_SERVICE) as Vibrator?)
+            ?.vibrate(VibrationEffect.createOneShot(OFFLINE_VIBRATION_MS, VibrationEffect.DEFAULT_AMPLITUDE))
+    }
+
     override fun onDestroy() {
+        network.stop()
+        offlineStrip.remove()
         commandRunner.onDestroy()
         sharedPreferences.unregisterOnSharedPreferenceChangeListener(this)
         unregisterReceiver(receiver)
@@ -406,6 +433,7 @@ class A9AccessibilityService : AccessibilityService(),
     }
 
     override fun onServiceConnected() {
+        offlineStrip.show(offlineMode.isOn)
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
@@ -461,6 +489,8 @@ class A9AccessibilityService : AccessibilityService(),
             SCROLL_SPEED_BOOST, "scroll_speed_settle", "scroll_speed_max_after_lift" -> {
                 sharedPreferences?.let { updateScrollSpeed(it) }
             }
+
+            OfflineMode.KEY_ON -> offlineStrip.show(offlineMode.isOn)
 
             "override_max_brightness" -> {
                 sharedPreferences?.let { updateMaxBrightness(it) }

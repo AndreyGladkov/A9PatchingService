@@ -131,6 +131,7 @@
         <item>Open Menu</item>
         <item>Toggle Night Light</item>
         <item>Toggle Backlight</item>
+        <item>Offline (dumb phone)</item>
         <item>Nothing</item>
     </string-array>
     <string-array name="button_action_values">
@@ -143,6 +144,7 @@
         <item>open_menu</item>
         <item>toggle_night_light</item>
         <item>toggle_backlight</item>
+        <item>offline</item>
         <item>dummy</item>
     </string-array>
     <string-array name="button_action_entries_screen_off">

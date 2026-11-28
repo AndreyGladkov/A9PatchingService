@@ -44,6 +44,33 @@ class UnixDomainSocketClient(private val socketName: String) {
         }
     }
 
+    /** Only "ver" is answered; a daemon too old to know it stays silent until the timeout. */
+    fun query(command: String, timeoutMs: Int): String? {
+        sendCommand(command)
+        return try {
+            socket?.soTimeout = timeoutMs
+            readLine()
+        } catch (e: IOException) {
+            null
+        } finally {
+            try {
+                socket?.soTimeout = 0
+            } catch (_: IOException) {
+            }
+        }
+    }
+
+    private fun readLine(): String? {
+        val input = inputStream ?: return null
+        val line = StringBuilder()
+        while (true) {
+            val byte = input.read()
+            if (byte == -1) return null
+            if (byte == '\n'.code) return line.toString()
+            line.append(byte.toChar())
+        }
+    }
+
     fun disconnect() {
         try {
             inputStream?.close()
@@ -59,21 +86,18 @@ class UnixDomainSocketClient(private val socketName: String) {
 }
 
 class UnixSocketCommandRunner : CommandRunner {
-    private var unixDomainSocketClient: UnixDomainSocketClient? = null
-    override fun runCommands(cmds: Array<String>) {
-        if (unixDomainSocketClient == null)
-            unixDomainSocketClient = UnixDomainSocketClient("a9_eink_socket").apply {
-                connect()
-            }
+    private val client by lazy { UnixDomainSocketClient("a9_eink_socket").apply { connect() } }
 
-        unixDomainSocketClient?.run {
-            for (cmd in cmds)
-                sendCommand(cmd)
-        }
+    override fun runCommands(cmds: Array<String>) {
+        for (cmd in cmds)
+            client.sendCommand(cmd)
     }
+
+    override fun query(command: String): String? = client.query(command, QUERY_TIMEOUT_MS)
 
     override fun onDestroy() {
-        unixDomainSocketClient?.disconnect()
+        client.disconnect()
     }
-
 }
+
+private const val QUERY_TIMEOUT_MS = 500

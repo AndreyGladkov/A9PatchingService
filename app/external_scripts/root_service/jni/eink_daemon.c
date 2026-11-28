@@ -1,3 +1,4 @@
+#define _GNU_SOURCE
 #include <stdio.h>
 #include <fcntl.h>
 #include <stdlib.h>
@@ -13,6 +14,7 @@
 #include <sys/wait.h>
 #include <signal.h>
 #include <pthread.h>
+#include "network.h"
 #include "panel_activity.h"
 #include "touch_monitor.h"
 
@@ -23,6 +25,10 @@ static const char* kTAG = "a9EinkService";
 #define SOCKET_NAME "0a9_eink_socket"
 #define BUFFER_SIZE 512
 #define SPEED_DISPLAY_MODE "521"
+/* Answered to "ver"; daemons without it answer nothing, so A9 Service hides what needs version 1. */
+#define DAEMON_VERSION "1"
+#define A9_SERVICE_DATA_DIR "/data/data/com.lmqr.ha9_comp_service"
+#define NETWORK_TIMEOUT_MS 10000
 
 static const char* theme_styles[] = {
         "TONAL_SPOT",
@@ -361,8 +367,45 @@ static void setRegionalClean(int variant) {
     pthread_mutex_unlock(&display_mode_lock);
 }
 
-void processCommand(const char* command) {
-    if (strcmp(command, "cm") == 0) {
+/* Looked up on every use: reinstalling A9 Service can give it another uid. */
+static uid_t a9ServiceUid(void) {
+    struct stat info;
+    if (stat(A9_SERVICE_DATA_DIR, &info) != 0)
+        return (uid_t) -1;
+    return info.st_uid;
+}
+
+static uid_t peerUid(int client_sockfd) {
+    struct ucred cred;
+    socklen_t length = sizeof(cred);
+    if (getsockopt(client_sockfd, SOL_SOCKET, SO_PEERCRED, &cred, &length) != 0)
+        return (uid_t) -1;
+    return cred.uid;
+}
+
+static void runNetworkCommand(const char* command, const char* const* args, uid_t peer_uid) {
+    if (peer_uid == (uid_t) -1 || peer_uid != a9ServiceUid()) {
+        LOGE("Refused %s from uid %d", command, (int) peer_uid);
+        return;
+    }
+    int status = network_run(NETWORK_SVC, args, NETWORK_TIMEOUT_MS);
+    if (status != 0)
+        LOGE("svc for %s ended with %d", command, status);
+}
+
+static void answerVersion(int client_sockfd) {
+    const char reply[] = DAEMON_VERSION "\n";
+    if (write(client_sockfd, reply, sizeof(reply) - 1) < 0)
+        LOGE("Version reply failed: %s", strerror(errno));
+}
+
+void processCommand(const char* command, int client_sockfd, uid_t peer_uid) {
+    const char* const* network_args = network_svc_args(command);
+    if (network_args) {
+        runNetworkCommand(command, network_args, peer_uid);
+    } else if (strcmp(command, "ver") == 0) {
+        answerVersion(client_sockfd);
+    } else if (strcmp(command, "cm") == 0) {
         epdCommitBitmap();
     } else if (strcmp(command, "r") == 0) {
         epdForceClear();
@@ -455,6 +498,7 @@ _Noreturn void setupServer() {
             LOGE("Socket accept failed: %s", strerror(errno));
             continue;
         }
+        uid_t peer_uid = peerUid(client_sockfd);
 
         while (1) {
             memset(buffer, 0, BUFFER_SIZE);
@@ -463,7 +507,7 @@ _Noreturn void setupServer() {
                 buffer[num_read] = '\0';
                 char* cmd = strtok(buffer, "\n");
                 while (cmd != NULL) {
-                    processCommand(cmd);
+                    processCommand(cmd, client_sockfd, peer_uid);
                     cmd = strtok(NULL, "\n");
                 }
             } else if (num_read == 0) {

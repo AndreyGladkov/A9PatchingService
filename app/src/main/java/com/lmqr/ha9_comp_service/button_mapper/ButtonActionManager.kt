@@ -15,10 +15,11 @@ class ButtonActionManager(commandRunner: CommandRunner) {
         "open_menu" to ToggleMenuButtonAction(),
         "toggle_night_light" to ToggleNightLightAction(),
         "toggle_backlight" to ToggleBacklightAction(),
+        "offline" to ToggleOfflineAction(),
     ).withDefault { DummyButtonAction() }
 
     fun executeLongPress(context: Context){
-        buttonCommands[PreferenceManager.getDefaultSharedPreferences(context).getString("long_press_eink_action", "dummy")]?.execute(context)
+        buttonCommands[PreferenceManager.getDefaultSharedPreferences(context).getString("long_press_eink_action", "offline")]?.execute(context)
     }
 
     fun executeDoublePress(context: Context){

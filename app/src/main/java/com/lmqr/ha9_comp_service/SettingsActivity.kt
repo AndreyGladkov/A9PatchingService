@@ -9,7 +9,9 @@ import android.provider.Settings
 import android.view.MenuItem
 import android.view.accessibility.AccessibilityManager
 import androidx.appcompat.app.AppCompatActivity
+import androidx.preference.ListPreference
 import androidx.preference.PreferenceFragmentCompat
+import com.lmqr.ha9_comp_service.offline.OfflineMode
 
 
 class SettingsActivity : AppCompatActivity() {
@@ -40,6 +42,14 @@ class SettingsActivity : AppCompatActivity() {
     class SettingsFragment : PreferenceFragmentCompat() {
         override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
             setPreferencesFromResource(R.xml.root_preferences, rootKey)
+            if (preferenceManager.sharedPreferences?.getBoolean(OfflineMode.KEY_SUPPORTED, false) != true)
+                SCREEN_ON_BUTTON_ACTIONS.forEach { key -> findPreference<ListPreference>(key)?.withoutOffline() }
+        }
+
+        private fun ListPreference.withoutOffline() {
+            val kept = entryValues.indices.filter { entryValues[it] != OFFLINE_ACTION }
+            entries = kept.map { entries[it] }.toTypedArray()
+            entryValues = kept.map { entryValues[it] }.toTypedArray()
         }
     }
 
@@ -67,3 +77,6 @@ class SettingsActivity : AppCompatActivity() {
         return false
     }
 }
+
+private const val OFFLINE_ACTION = "offline"
+private val SCREEN_ON_BUTTON_ACTIONS = listOf("single_press_eink_action", "double_press_eink_action", "long_press_eink_action")
